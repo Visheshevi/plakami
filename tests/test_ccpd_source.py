@@ -116,6 +116,8 @@ def test_ccpd_builder_reads_local_extracted_images_and_outputs_coco(
     assert stats["vehicle_boxes"] == 0
     assert coco["images"][0]["annotated_classes"] == ["license_plate"]
     assert coco["annotations"][0]["bbox"] == [154.0, 383.0, 232.0, 90.0]
+    assert coco["images"][0]["file_name"] == f"images/base/{_ccpd_name()}"
+    assert (processed / coco["images"][0]["file_name"]).is_file()
     assert (processed / "ATTRIBUTION.md").is_file()
 
 

@@ -23,13 +23,16 @@
 - [x] Download and validate a bounded Kaggle real-data sample (about 213 MB archive download)
 - [x] Run guarded Colab download and select a deterministic 100-image CCPD sample
 - [x] Obtain a CCPD sample and validate it with the local CCPD builder (used CCPD2020 while CCPD2019 is quota-blocked; see ADR-0004 addendum)
-- [ ] Fix COCO `file_name` dropping subfolders and Open Images `.jpg` lookup in combine (blocks combined build)
+- [x] Fix COCO `file_name` dropping subfolders and Open Images `.jpg` lookup in combine
+- [ ] Plate-first Open Images sampling (config-driven plate/vehicle mix), rebuild capped sample
 - [ ] Build and review the combined dataset and stats report
 - [ ] Complete full T1 data pipeline and dataset stats report
 
 Bounded sample results (`MAX_IMAGES=100`): 83 usable images; 17 image URLs returned HTTP 404/410; 0 rows excluded for missing/unapproved licence or attribution; 0 near-duplicates; 65 train / 7 val / 11 test; 1 plate box and 186 vehicle boxes. All manifest rows have CC BY 2.0 metadata and attribution fields, and all referenced files exist. This sample is for pipeline validation only, not for training-quality conclusions.
 
 ### Next up
+
+Plate-first Open Images sampling (task 2), then the combined build and stats report (task 3). Earlier context:
 
 Open Images V6 and Kaggle CC0 have bounded real-data samples; CCPD parsing/build support and the combined merge/cap pipeline are implemented and covered by synthetic tests. The guarded Colab helper has now downloaded the approximately 12.26 GiB CCPD archive and retained 100 deterministic images from 355,013 JPEGs. Full T1 still needs the sample bundle transferred into the workspace, local CCPD validation, and the combined dataset build/report. The owner approved metadata-listed CC BY 2.0 for the capped Open Images sample; the upstream per-image licence disclaimer remains recorded in ADR-0002.
 
@@ -51,6 +54,7 @@ Open Images V6 and Kaggle CC0 have bounded real-data samples; CCPD parsing/build
 | Open Images V6 ingestion (partial T1) | Parses allowed labels, downloads explicitly capped images, validates metadata, builds COCO splits and licence manifest, and deduplicates images. | Not available (local Git not initialized; owner chose to proceed without Git). |
 | Kaggle CC0 plate-source adapter (partial T1) | Adds public archive ingestion, Pascal VOC plate parsing, CC0 manifest records, COCO output, pHash deduplication, and deterministic splits; validated on a capped real sample. | Not available (local Git not initialized; owner chose to proceed without Git). |
 | CCPD + combined dataset pipeline (partial T1) | Parses filename boxes from extracted CCPD data; globally deduplicates source manifests, caps CCPD at 30% of plate boxes, tracks annotation scope, and writes merged COCO/manifest/stats. Synthetic tests only; no CCPD archive downloaded. | Not available (local Git not initialized; owner chose to proceed without Git). |
+| COCO image-path fix (T1) | One shared helper maps manifest IDs to image paths (keeps subfolders, adds `.jpg` to bare Open Images IDs); COCO files and the combined merge now always point at real images. | `t1-fix-coco-paths` |
 | Guarded Colab CCPD sampler (partial T1) | Checks archive size and free runtime disk, streams a deterministic cap of 100 JPEGs, and bundles them for transfer. Initial Colab run succeeded; retry diagnostics have synthetic coverage. | Not available (local Git not initialized; owner chose to proceed without Git). |
 
 ## Session notes
@@ -68,3 +72,4 @@ Open Images V6 and Kaggle CC0 have bounded real-data samples; CCPD parsing/build
 - 2026-11-09: Searched `~/Downloads`, `~/Desktop`, `~/Documents` and the home folder (Spotlight + `find`) for the first Colab run's `ccpd_sample.tar.gz`; not found on this Mac. Did not retry Drive (last quota hit was 22:46 the same day). Options for the owner: check the earlier Colab runtime's `/content/ccpd_work/`, copy the official file into their own Google Drive and download from there, or retry after the quota resets.
 
 - 2026-11-01: Began T0 scaffold after owner approval. No local Git repository was present; owner chose implementation without Git. Code licence deferred; no GitHub repository created.- 2026-11-09: CCPD2019 Drive retry hit the quota again (no bytes downloaded). Downloaded the official CCPD2020 archive instead (866 MiB, same README and MIT licence; ADR-0004 addendum), extracted a deterministic 100-image sample, and ran `make data DATA_CONFIG=configs/data/ccpd.yaml MAX_IMAGES=100`: 99 images, 1 near-duplicate removed, 0 failures; 83 train / 9 val / 7 test; 99 plate boxes; all rows MIT and plate-only; all boxes inside image bounds and visually on the plate. Found that all 99 COCO `file_name` values point to missing paths (subfolders dropped by `_coco_dataset`), so the combined build is blocked until that bug is fixed. CCPD2020 is green plates only; add CCPD2019 later.
+- 2026-11-09: Initialised local Git (no remote); baseline commit on `main`, task branch `t1-fix-coco-paths`. Fixed COCO `file_name` dropping subfolders and the combine step's missing `.jpg` for Open Images via one shared `image_relative_path` helper; added `tests/test_coco_paths.py` plus a CCPD path assertion (confirmed it fails on the old code). `make lint` clean, `make test` 32 passed. Rebuilt CCPD and ran `make data-combine` as a smoke check: every COCO path in all three sources and the 220-image combined set resolves to a real file.

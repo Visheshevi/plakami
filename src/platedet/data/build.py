@@ -7,7 +7,7 @@ import hashlib
 import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import yaml
@@ -77,21 +77,30 @@ def _load_annotations(
     return annotations
 
 
+def image_relative_path(source_image_id: str) -> str:
+    """Path of a manifest image inside a dataset's `images/` folder.
+
+    Keeps subfolders (CCPD, combined) and adds `.jpg` to bare IDs (Open Images).
+    """
+    path = PurePosixPath(source_image_id)
+    if path.is_absolute() or ".." in path.parts or not path.parts:
+        raise ValueError(f"Unsafe source_image_id: {source_image_id!r}")
+    if not path.suffix:
+        path = path.with_suffix(".jpg")
+    return path.as_posix()
+
+
 def _coco_dataset(
     records: list[ManifestRecord], annotations: dict[str, list[dict[str, float | int]]]
 ) -> dict[str, Any]:
     images: list[dict[str, Any]] = []
     coco_annotations: list[dict[str, Any]] = []
     for image_number, record in enumerate(records, start=1):
-        source_filename = Path(record.source_image_id)
-        if not source_filename.suffix:
-            source_filename = source_filename.with_suffix(".jpg")
-        image_path = Path("images") / source_filename.name
         images.append(
             {
                 "id": image_number,
                 "source_image_id": record.source_image_id,
-                "file_name": image_path.as_posix(),
+                "file_name": f"images/{image_relative_path(record.source_image_id)}",
                 "width": record.width,
                 "height": record.height,
                 "annotated_classes": json.loads(record.annotated_classes),

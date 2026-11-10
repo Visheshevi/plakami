@@ -14,7 +14,7 @@ from typing import Any
 
 import yaml
 
-from platedet.data.build import _coco_dataset
+from platedet.data.build import _coco_dataset, image_relative_path
 from platedet.data.dedupe import deduplicate_by_phash
 from platedet.data.manifest import (
     SOURCE_LICENSES,
@@ -128,7 +128,7 @@ def build_combined_dataset(config_path: Path) -> dict[str, Any]:
         kept_source_records: list[ManifestRecord] = []
         for record in source_records:
             image_root = source_dir / "images"
-            image_path = image_root / record.source_image_id
+            image_path = image_root / image_relative_path(record.source_image_id)
             try:
                 image_path.resolve().relative_to(image_root.resolve())
             except ValueError as error:
@@ -164,7 +164,8 @@ def build_combined_dataset(config_path: Path) -> dict[str, Any]:
     combined_records: list[ManifestRecord] = []
     combined_annotations: dict[str, list[dict[str, float | int]]] = {}
     for record in records:
-        source_dir, original_path = record_sources[record.image_id]
+        source_dir, source_image_id = record_sources[record.image_id]
+        original_path = image_relative_path(source_image_id)
         relative_path = f"{record.source}/{original_path}"
         destination = image_dir / relative_path
         destination.parent.mkdir(parents=True, exist_ok=True)
