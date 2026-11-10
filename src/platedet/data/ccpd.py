@@ -61,6 +61,8 @@ def select_ccpd_images(root: Path, max_images: int) -> tuple[list[CcpdImage], in
             invalid_count += 1
     selected = sorted(
         valid,
-        key=lambda item: hashlib.sha256(f"{CCPD_SOURCE}:{item.relative_path}".encode()).digest(),
+        key=lambda item: hashlib.sha256(
+            f"{CCPD_SOURCE}-sample:{item.relative_path}".encode()
+        ).digest(),
     )[:max_images]
     return selected, invalid_count

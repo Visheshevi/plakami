@@ -37,7 +37,7 @@ def apply_ccpd_share_cap(
     allowed_ccpd_plates = math.floor(max_share * other_plates / (1 - max_share))
     ccpd_records = sorted(
         (record for record in records if record.source == "ccpd"),
-        key=lambda record: hashlib.sha256(record.image_id.encode()).digest(),
+        key=lambda record: hashlib.sha256(f"ccpd-cap:{record.image_id}".encode()).digest(),
     )
     retained: list[ManifestRecord] = []
     ccpd_count = 0

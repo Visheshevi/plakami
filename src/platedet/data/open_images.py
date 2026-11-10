@@ -5,8 +5,11 @@ from __future__ import annotations
 import csv
 import hashlib
 import re
+import time
+import urllib.error
 import urllib.request
 from collections import defaultdict
+from collections.abc import Callable
 from pathlib import Path
 from typing import TextIO
 
@@ -136,8 +139,32 @@ def read_image_metadata(
     return selected, unapproved_licences
 
 
-def download_url(url: str, destination: Path, *, timeout: int = 60) -> None:
-    """Download an HTTPS resource atomically; existing complete files are reused."""
+RETRYABLE_HTTP_CODES = {429, 500, 502, 503, 504}
+MAX_RETRY_WAIT_SECONDS = 300.0
+
+
+def _retry_wait(error: urllib.error.HTTPError, attempt: int, base_delay: float) -> float:
+    """Seconds to wait before retrying: the server's Retry-After if given, else exponential."""
+    retry_after = error.headers.get("Retry-After") if error.headers else None
+    if retry_after and retry_after.strip().isdigit():
+        return min(float(retry_after), MAX_RETRY_WAIT_SECONDS)
+    return min(base_delay * 2**attempt, MAX_RETRY_WAIT_SECONDS)
+
+
+def download_url(
+    url: str,
+    destination: Path,
+    *,
+    timeout: int = 60,
+    max_retries: int = 6,
+    base_delay: float = 5.0,
+    sleep: Callable[[float], None] = time.sleep,
+) -> None:
+    """Download an HTTPS resource atomically; existing complete files are reused.
+
+    Rate-limit (429) and transient server errors are retried with backoff; other
+    HTTP errors (e.g. 404/410 for deleted Flickr photos) fail immediately.
+    """
     if not url.startswith("https://"):
         raise ValueError("Open Images downloads must use HTTPS")
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -145,17 +172,24 @@ def download_url(url: str, destination: Path, *, timeout: int = 60) -> None:
         return
     temporary = destination.with_suffix(destination.suffix + ".part")
     request = urllib.request.Request(url, headers={"User-Agent": "platedet-data/0.1"})
-    try:
-        with (
-            urllib.request.urlopen(request, timeout=timeout) as response,
-            temporary.open("wb") as output,
-        ):
-            while chunk := response.read(1024 * 1024):
-                output.write(chunk)
-        temporary.replace(destination)
-    except Exception:
-        temporary.unlink(missing_ok=True)
-        raise
+    for attempt in range(max_retries + 1):
+        try:
+            with (
+                urllib.request.urlopen(request, timeout=timeout) as response,
+                temporary.open("wb") as output,
+            ):
+                while chunk := response.read(1024 * 1024):
+                    output.write(chunk)
+            temporary.replace(destination)
+            return
+        except urllib.error.HTTPError as error:
+            temporary.unlink(missing_ok=True)
+            if error.code not in RETRYABLE_HTTP_CODES or attempt == max_retries:
+                raise
+            sleep(_retry_wait(error, attempt, base_delay))
+        except Exception:
+            temporary.unlink(missing_ok=True)
+            raise
 
 
 def download_image(url: str, image_id: str, image_dir: Path) -> Path:

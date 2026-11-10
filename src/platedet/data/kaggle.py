@@ -143,7 +143,9 @@ def select_annotations(archive: zipfile.ZipFile, max_images: int) -> tuple[list[
         annotations.append(parse_voc_xml(archive.read(info), info.filename))
     selected = sorted(
         annotations,
-        key=lambda item: hashlib.sha256(f"{KAGGLE_SOURCE}:{item.filename}".encode()).digest(),
+        key=lambda item: hashlib.sha256(
+            f"{KAGGLE_SOURCE}-sample:{item.filename}".encode()
+        ).digest(),
     )[:max_images]
     return selected, len(annotations)
 
