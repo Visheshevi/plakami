@@ -52,6 +52,43 @@ def apply_ccpd_share_cap(
     return others + retained, dropped
 
 
+def plate_size_stats(
+    records: list[ManifestRecord],
+    annotations: dict[str, list[dict[str, float | int]]],
+    input_sizes: tuple[int, ...] = (640, 416),
+) -> dict[str, Any]:
+    """Plate width percentiles in original pixels, plus small-box counts after letterboxing.
+
+    `under_32px_wide_original` matches the SPEC §6 small-plate bucket; `under_6px_short_side_at_N`
+    counts boxes SPEC §4.4 step 6 would drop at input size N (reported, not dropped here).
+    """
+    widths: list[float] = []
+    small_at = dict.fromkeys(input_sizes, 0)
+    for record in records:
+        for box in annotations.get(record.source_image_id, []):
+            if box["category_id"] != 1:
+                continue
+            width = (float(box["xmax"]) - float(box["xmin"])) * record.width
+            height = (float(box["ymax"]) - float(box["ymin"])) * record.height
+            widths.append(width)
+            for size in input_sizes:
+                scale = size / max(record.width, record.height)
+                small_at[size] += min(width, height) * scale < 6
+    widths.sort()
+
+    def percentile(fraction: float) -> float:
+        if not widths:
+            return 0.0
+        return round(widths[min(len(widths) - 1, int(fraction * len(widths)))], 1)
+
+    return {
+        "count": len(widths),
+        "width_px_p10_p50_p90": [percentile(0.1), percentile(0.5), percentile(0.9)],
+        "under_32px_wide_original": sum(width < 32 for width in widths),
+        **{f"under_6px_short_side_at_{size}": count for size, count in small_at.items()},
+    }
+
+
 def _read_manifest(path: Path) -> list[ManifestRecord]:
     with path.open(encoding="utf-8", newline="") as stream:
         return [
@@ -209,6 +246,18 @@ def build_combined_dataset(config_path: Path) -> dict[str, Any]:
             ),
         },
         "split_counts": {split: len(items) for split, items in split_records.items()},
+        "split_source_counts": {
+            split: {
+                source: {
+                    "images": sum(record.source == source for record in items),
+                    "plate_boxes": sum(r.n_plates for r in items if r.source == source),
+                    "vehicle_boxes": sum(r.n_vehicles for r in items if r.source == source),
+                }
+                for source in sources
+            }
+            for split, items in split_records.items()
+        },
+        "plate_sizes": plate_size_stats(combined_records, combined_annotations),
         "split_ratios": ratios,
         "note": "Use annotated_classes; plate-only images are not vehicle negatives.",
     }

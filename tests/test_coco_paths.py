@@ -103,3 +103,30 @@ def test_combined_coco_file_names_resolve_for_bare_and_nested_ids(tmp_path: Path
     ]
     assert all((combined / name).is_file() for name in names)
     assert sorted(a["category_id"] for a in coco["annotations"]) == [1, 1, 2]
+
+
+def test_plate_size_stats_counts_small_boxes_after_letterbox() -> None:
+    from platedet.data.combine import plate_size_stats
+    from platedet.data.manifest import ManifestRecord
+
+    record = ManifestRecord(
+        "a:1", "open_images_v6", "1", "https://x.test", "a", "CC BY 2.0",
+        OPEN_IMAGES_LICENSE_URL, "0", "0", 2000, 1000, "train", 2, 1, '["license_plate"]',
+    )  # fmt: skip
+    boxes = {
+        "1": [
+            # 20x10 px -> at 640 (scale 0.32) short side 3.2 px: small; under 32 px wide
+            {"category_id": 1, "xmin": 0.0, "xmax": 0.01, "ymin": 0.0, "ymax": 0.01},
+            # 200x100 px -> large at both sizes
+            {"category_id": 1, "xmin": 0.0, "xmax": 0.1, "ymin": 0.0, "ymax": 0.1},
+            {"category_id": 2, "xmin": 0.0, "xmax": 0.001, "ymin": 0.0, "ymax": 0.001},
+        ]
+    }
+
+    stats = plate_size_stats([record], boxes)
+
+    assert stats["count"] == 2
+    assert stats["under_32px_wide_original"] == 1
+    assert stats["under_6px_short_side_at_640"] == 1
+    assert stats["under_6px_short_side_at_416"] == 1
+    assert stats["width_px_p10_p50_p90"] == [20.0, 200.0, 200.0]
