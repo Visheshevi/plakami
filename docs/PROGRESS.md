@@ -24,7 +24,7 @@
 - [x] Run guarded Colab download and select a deterministic 100-image CCPD sample
 - [x] Obtain a CCPD sample and validate it with the local CCPD builder (used CCPD2020 while CCPD2019 is quota-blocked; see ADR-0004 addendum)
 - [x] Fix COCO `file_name` dropping subfolders and Open Images `.jpg` lookup in combine
-- [ ] Plate-first Open Images sampling (config-driven plate/vehicle mix), rebuild capped sample
+- [x] Plate-first Open Images sampling (config-driven plate/vehicle mix), rebuild capped sample
 - [ ] Build and review the combined dataset and stats report
 - [ ] Complete full T1 data pipeline and dataset stats report
 
@@ -55,6 +55,7 @@ Open Images V6 and Kaggle CC0 have bounded real-data samples; CCPD parsing/build
 | Kaggle CC0 plate-source adapter (partial T1) | Adds public archive ingestion, Pascal VOC plate parsing, CC0 manifest records, COCO output, pHash deduplication, and deterministic splits; validated on a capped real sample. | Not available (local Git not initialized; owner chose to proceed without Git). |
 | CCPD + combined dataset pipeline (partial T1) | Parses filename boxes from extracted CCPD data; globally deduplicates source manifests, caps CCPD at 30% of plate boxes, tracks annotation scope, and writes merged COCO/manifest/stats. Synthetic tests only; no CCPD archive downloaded. | Not available (local Git not initialized; owner chose to proceed without Git). |
 | COCO image-path fix (T1) | One shared helper maps manifest IDs to image paths (keeps subfolders, adds `.jpg` to bare Open Images IDs); COCO files and the combined merge now always point at real images. | `t1-fix-coco-paths` |
+| Plate-first Open Images sampling (T1) | Reserves a configurable share (`plate_image_fraction`, 0.8) of the Open Images cap for images with plate boxes, so samples are no longer almost plate-free; reports the mix in `stats.json`. ADR-0005. | `t1-open-images-plate-first` |
 | Guarded Colab CCPD sampler (partial T1) | Checks archive size and free runtime disk, streams a deterministic cap of 100 JPEGs, and bundles them for transfer. Initial Colab run succeeded; retry diagnostics have synthetic coverage. | Not available (local Git not initialized; owner chose to proceed without Git). |
 
 ## Session notes
@@ -73,3 +74,4 @@ Open Images V6 and Kaggle CC0 have bounded real-data samples; CCPD parsing/build
 
 - 2026-11-01: Began T0 scaffold after owner approval. No local Git repository was present; owner chose implementation without Git. Code licence deferred; no GitHub repository created.- 2026-11-09: CCPD2019 Drive retry hit the quota again (no bytes downloaded). Downloaded the official CCPD2020 archive instead (866 MiB, same README and MIT licence; ADR-0004 addendum), extracted a deterministic 100-image sample, and ran `make data DATA_CONFIG=configs/data/ccpd.yaml MAX_IMAGES=100`: 99 images, 1 near-duplicate removed, 0 failures; 83 train / 9 val / 7 test; 99 plate boxes; all rows MIT and plate-only; all boxes inside image bounds and visually on the plate. Found that all 99 COCO `file_name` values point to missing paths (subfolders dropped by `_coco_dataset`), so the combined build is blocked until that bug is fixed. CCPD2020 is green plates only; add CCPD2019 later.
 - 2026-11-09: Initialised local Git (no remote); baseline commit on `main`, task branch `t1-fix-coco-paths`. Fixed COCO `file_name` dropping subfolders and the combine step's missing `.jpg` for Open Images via one shared `image_relative_path` helper; added `tests/test_coco_paths.py` plus a CCPD path assertion (confirmed it fails on the old code). `make lint` clean, `make test` 32 passed. Rebuilt CCPD and ran `make data-combine` as a smoke check: every COCO path in all three sources and the 220-image combined set resolves to a real file.
+- 2026-11-09: Added plate-first Open Images sampling (ADR-0005, `plate_image_fraction: 0.8`) on `t1-open-images-plate-first`. Rebuilt `MAX_IMAGES=100`: 80 plate + 20 vehicle-only selected; 87 usable (13 dead URLs); 69 images with plates; 110 plate boxes (was 1) and 216 vehicle boxes; 66/12/9 split. Visual check: boxes correct; plates from US, UK and continental Europe. Data-quality caveats: some visible plates are unlabelled (Open Images labels are incomplete) and at least one plate label looks wrong (neon-sign image). `make lint` clean, `make test` 34 passed.

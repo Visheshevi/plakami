@@ -9,3 +9,4 @@ split_ratios:
   test: 0.1
 phash_distance: 4
 download_workers: 4
+plate_image_fraction: 0.8

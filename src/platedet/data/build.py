@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -30,6 +29,7 @@ from platedet.data.open_images import (
     load_class_ids,
     read_image_metadata,
     read_target_annotations,
+    select_candidates,
 )
 from platedet.data.split import DEFAULT_SPLIT_RATIOS, assign_split, validate_split_ratios
 
@@ -168,13 +168,16 @@ def build_dataset(config_path: Path, max_images: int | None) -> dict[str, int]:
     workers = int(config.get("download_workers", 4))
     if workers < 1:
         raise ValueError("download_workers must be positive")
+    plate_fraction = float(config.get("plate_image_fraction", 0.0))
+    if not 0 <= plate_fraction <= 1:
+        raise ValueError("plate_image_fraction must be in [0, 1]")
 
     class_path, annotation_paths, metadata_paths = _download_source_files(raw_dir, splits)
     annotations = _load_annotations(annotation_paths, class_path)
-    candidates = sorted(
-        annotations,
-        key=lambda item: hashlib.sha256(f"sample:{item}".encode()).digest(),
-    )[:max_images]
+    candidates = select_candidates(annotations, max_images, plate_fraction)
+    plate_candidates = sum(
+        any(box["category_id"] == 1 for box in annotations[key]) for key in candidates
+    )
     selected_ids = set(candidates)
     metadata, excluded_licences = read_image_metadata(list(metadata_paths.values()), selected_ids)
     missing_metadata = selected_ids - metadata.keys()
@@ -253,7 +256,11 @@ def build_dataset(config_path: Path, max_images: int | None) -> dict[str, int]:
     stats = {
         "source": "open_images_v6",
         "requested_max_images": max_images,
+        "plate_image_fraction": plate_fraction,
+        "selected_plate_images": plate_candidates,
+        "selected_vehicle_only_images": len(candidates) - plate_candidates,
         "images_used": len(records),
+        "images_with_plates": sum(record.n_plates > 0 for record in records),
         "excluded_unverified_licence_or_attribution": excluded_licences,
         "missing_metadata": len(missing_metadata),
         "download_or_image_failures": failures,

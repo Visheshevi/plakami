@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import re
 import urllib.request
 from collections import defaultdict
@@ -70,6 +71,37 @@ def read_target_annotations(
             {"category_id": category_id, "xmin": xmin, "xmax": xmax, "ymin": ymin, "ymax": ymax}
         )
     return dict(annotations)
+
+
+def select_candidates(
+    annotations: dict[str, list[dict[str, float | int]]],
+    max_images: int,
+    plate_image_fraction: float,
+) -> list[str]:
+    """Pick a deterministic capped sample, reserving a share for images that contain plates.
+
+    Plates are rare in Open Images, so uniform sampling yields almost none. Up to
+    `plate_image_fraction` of the cap goes to plate images; vehicle-only images fill
+    the rest, and any shortfall on either side is filled from the other.
+    """
+    if not 0 <= plate_image_fraction <= 1:
+        raise ValueError("plate_image_fraction must be in [0, 1]")
+    if max_images <= 0:
+        raise ValueError("MAX_IMAGES must be positive")
+
+    def order(image_id: str) -> bytes:
+        return hashlib.sha256(f"sample:{image_id}".encode()).digest()
+
+    plate_ids = sorted(
+        (key for key, boxes in annotations.items() if any(b["category_id"] == 1 for b in boxes)),
+        key=order,
+    )
+    plate_set = set(plate_ids)
+    other_ids = sorted((key for key in annotations if key not in plate_set), key=order)
+    n_plate = min(len(plate_ids), round(plate_image_fraction * max_images))
+    n_other = min(len(other_ids), max_images - n_plate)
+    n_plate = min(len(plate_ids), max_images - n_other)
+    return plate_ids[:n_plate] + other_ids[:n_other]
 
 
 def read_image_metadata(

@@ -15,7 +15,7 @@ from platedet.data.manifest import (
     validate_license,
     write_manifest,
 )
-from platedet.data.open_images import load_class_ids, read_target_annotations
+from platedet.data.open_images import load_class_ids, read_target_annotations, select_candidates
 from platedet.data.split import assign_split, validate_split_ratios
 
 
@@ -155,3 +155,33 @@ def test_builder_requires_explicit_image_limit_before_download(tmp_path: Path) -
         build_dataset(config, max_images=None)
 
     assert not (tmp_path / "data").exists()
+
+
+def _annotations(n_plate: int, n_vehicle: int) -> dict[str, list[dict[str, float | int]]]:
+    plate = {"category_id": 1, "xmin": 0.1, "xmax": 0.2, "ymin": 0.1, "ymax": 0.2}
+    vehicle = {"category_id": 2, "xmin": 0.0, "xmax": 1.0, "ymin": 0.0, "ymax": 1.0}
+    result = {f"{index:016x}": [plate, vehicle] for index in range(n_plate)}
+    result.update({f"{index + 1000:016x}": [vehicle] for index in range(n_vehicle)})
+    return result
+
+
+def test_select_candidates_reserves_plate_share_deterministically() -> None:
+    annotations = _annotations(n_plate=50, n_vehicle=500)
+
+    selected = select_candidates(annotations, max_images=100, plate_image_fraction=0.8)
+
+    plates = [key for key in selected if annotations[key][0]["category_id"] == 1]
+    assert len(selected) == 100
+    assert len(set(selected)) == 100
+    assert len(plates) == 50  # only 50 exist; vehicle-only images fill the rest
+    assert selected == select_candidates(annotations, 100, 0.8)
+    many = _annotations(n_plate=500, n_vehicle=500)
+    assert sum(many[k][0]["category_id"] == 1 for k in select_candidates(many, 100, 0.8)) == 80
+
+
+def test_select_candidates_fills_shortfall_and_validates_fraction() -> None:
+    few_vehicles = _annotations(n_plate=500, n_vehicle=5)
+    assert len(select_candidates(few_vehicles, 100, 0.8)) == 100
+    assert len(select_candidates(_annotations(3, 4), 100, 0.8)) == 7
+    with pytest.raises(ValueError, match="plate_image_fraction"):
+        select_candidates(few_vehicles, 10, 1.5)
