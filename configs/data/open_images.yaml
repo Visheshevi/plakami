@@ -1,0 +1,11 @@
+source: open_images_v6
+data_dir: data
+source_splits:
+  - train
+  - validation
+split_ratios:
+  train: 0.8
+  val: 0.1
+  test: 0.1
+phash_distance: 4
+download_workers: 4

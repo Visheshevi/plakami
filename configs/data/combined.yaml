@@ -1,0 +1,11 @@
+data_dir: data
+sources:
+  - open_images_v6
+  - kaggle_car_plate_detection
+  - ccpd
+split_ratios:
+  train: 0.8
+  val: 0.1
+  test: 0.1
+phash_distance: 4
+max_ccpd_plate_share: 0.30

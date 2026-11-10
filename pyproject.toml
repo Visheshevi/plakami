@@ -1,0 +1,41 @@
+[project]
+name = "platedet"
+version = "0.1.0"
+description = "Licence-aware plate and vehicle detector training project."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "ImageHash>=4.3,<5", # BSD-2-Clause: perceptual image hashes for deduplication.
+    "Pillow>=11,<13", # HPND: validate images and collect dimensions.
+    "PyYAML>=6.0,<7", # MIT: load dataset configuration files.
+    "pyarrow>=19,<25", # Apache-2.0: write the required Parquet manifest.
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3,<9",
+    "ruff>=0.11,<1",
+]
+
+[build-system]
+requires = ["hatchling>=1.26,<2"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/platedet"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+pythonpath = ["src", "."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.format]
+quote-style = "double"

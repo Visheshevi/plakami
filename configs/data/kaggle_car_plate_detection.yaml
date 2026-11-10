@@ -1,0 +1,7 @@
+source: kaggle_car_plate_detection
+data_dir: data
+split_ratios:
+  train: 0.8
+  val: 0.1
+  test: 0.1
+phash_distance: 4
