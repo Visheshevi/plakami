@@ -1,6 +1,6 @@
 # Project Progress
 
-## Current step: T2 — Baseline (planning; awaiting owner approval)
+## Current step: T2 — Baseline (done; awaiting owner review)
 
 ### T0 — Scaffold
 
@@ -31,9 +31,17 @@
 
 Bounded sample results (`MAX_IMAGES=100`): 83 usable images; 17 image URLs returned HTTP 404/410; 0 rows excluded for missing/unapproved licence or attribution; 0 near-duplicates; 65 train / 7 val / 11 test; 1 plate box and 186 vehicle boxes. All manifest rows have CC BY 2.0 metadata and attribution fields, and all referenced files exist. This sample is for pipeline validation only, not for training-quality conclusions.
 
+### T2 — Baseline (done)
+
+- [x] Owner approved the T2 plan (2026-11-12): no external plate baseline (ADR-0007), curated holdout (option 2a), small boxes kept in eval and dropped from training only
+- [x] Shared pre- and post-processing in `src/platedet/postprocess.py`, documented in `docs/preprocessing.md`
+- [x] SPEC §6 metrics in `src/platedet/eval/metrics.py` (recall at threshold, small-plate recall, FP/image, AP@0.5, annotated-class scoping)
+- [x] `make baseline` runner: hash-checked checkpoint, summary.json with commit, manifest and checkpoint hashes, predictions and miss gallery
+- [x] YOLOX-Tiny COCO vehicle baseline on val/test, results in `docs/baseline.md`
+
 ### Next up
 
-T2 Baseline: plan proposed to the owner (2026-11-12); no T2 code until approved. Open questions: the SPEC §6 plate baseline (no RT-DETRv2-R18 Open Images plate model with a known licence could be found), the holdout substitute, and small-box handling. CCPD2019 is still quota-blocked.
+Owner review of `docs/baseline.md`. Then build the curated `holdout` set (owner chose option 2a: about 200 new Open Images plate photos outside our sample, every plate checked by hand, evaluation-only). Then the T3 plan. CCPD2019 is still quota-blocked.
 
 ### Open owner decisions
 
@@ -41,6 +49,7 @@ T2 Baseline: plan proposed to the owner (2026-11-12); no T2 code until approved.
 - GitHub repository creation and remote setup are deferred.
 - Local Git is not initialized; no task branch or commit exists.
 - Proposed data and evaluation targets in SPEC §§4–6 remain unconfirmed.
+- 2026-11-12: Proposed SPEC §6 wording change for the dropped plate baseline (ADR-0007), awaiting the owner. Channel order for our own models (SPEC §5 says RGB; the official YOLOX trainer reads BGR) is to be fixed in the T3 plan.
 - Google Colab free tier is approved for the eventual T3 training run; no compute has been started or paid for.
 - Confirmed T1 split ratios: train 80%, val 10%, test 10%.
 - 2026-11-09: Owner confirmed the model will be used worldwide, and that no owner photos are available (no owner-photo training data or `holdout` set). The SPEC §6 holdout recall target therefore can't be measured as written; proposed substitute to be agreed before T3.
@@ -58,6 +67,7 @@ T2 Baseline: plan proposed to the owner (2026-11-12); no T2 code until approved.
 | Combined dataset stats report (T1) | `stats.json` now breaks counts down by split and source, and reports plate widths (p10/p50/p90), plates under 32 px wide (SPEC §6) and boxes under 6 px after letterboxing to 640/416 (SPEC §4.4). | `t1-combined-dataset-report` |
 | Split-safe sampling + download retries (T1) | Salts CCPD/Kaggle sampling and the CCPD cap so they don't correlate with the split hash; Open Images downloads retry 429/5xx with Retry-After or exponential backoff. | `t1-fix-sampling-and-rate-limits` |
 | Open Images CVDF image host (T1) | `image_host: cvdf` downloads images from the official CVDF mirror by split and ID instead of Flickr (no throttling, no deleted photos); attribution still from the metadata CSV. ADR-0006. | `t1-open-images-cvdf-host` |
+| Pre/post-processing, metrics and baseline runner (T2) | One reference letterbox/decode/NMS module; SPEC §6 metrics scored only where a class is annotated; `make baseline` evaluates an ONNX YOLOX model on val/test with a hash-checked checkpoint, run record and miss gallery. ADR-0007. | `t2-baseline` |
 | Guarded Colab CCPD sampler (partial T1) | Checks archive size and free runtime disk, streams a deterministic cap of 100 JPEGs, and bundles them for transfer. Initial Colab run succeeded; retry diagnostics have synthetic coverage. | Not available (local Git not initialized; owner chose to proceed without Git). |
 
 ## Session notes
@@ -81,3 +91,4 @@ T2 Baseline: plan proposed to the owner (2026-11-12); no T2 code until approved.
 - 2026-11-10: First full build (Kaggle 433, CCPD 3000, Open Images 2500) exposed two bugs: all CCPD images landed in `train` (sampling and cap hashed the same key as the split) and Flickr returned HTTP 429 for 2,359 of 2,500 images. Fixed both on `t1-fix-sampling-and-rate-limits` (4 new tests, confirmed failing on old code; `make test` 39 passed, lint clean). Kaggle's 136 removed images are exact pHash duplicates (dataset repeats 86 images), so dedupe is correct. Rebuild: CCPD 2,990 images split 2428/279/283; Kaggle 297; Open Images still 122 (Flickr throttling plus Mac sleep/network drop at 01:38). Combined: 627 images, 695 plate / 310 vehicle boxes, CCPD 29.9% (2,782 CCPD images dropped by the cap because Open Images is small). Open Images' official download page points to CVDF hosting (`downloader.py`, Apache-2.0, bucket `open-images-dataset`); a HEAD check of one image returned 200, 166 KB vs 1 MB from Flickr. Switching the image host needs owner approval and an ADR.
 - 2026-11-11: Switched Open Images image downloads to CVDF (ADR-0006, owner approved) on `t1-open-images-cvdf-host`; `make test` 40 passed, lint clean. Full build (kept awake with `caffeinate`, log `data/logs/full-build-20261111-2252.log`): Open Images 7,599 of 7,600 (1 network error), 6,079 with plates, 8,819 plate / 21,156 vehicle boxes, 2.2 GB, images max 1,024 px; CCPD2020 5,967 (30 near-duplicates); Kaggle 297. Combined: 11,815 images (9,503 / 1,121 / 1,191), 13,067 plate / 21,155 vehicle boxes, CCPD 30.0% (2,047 dropped by cap), 1 cross-source duplicate, all licences allowlisted with authors. Plate width p10/p50/p90 = 23/108/371 px; 2,445 plates under 32 px wide; under 6 px short side: 867 at 640, 2,443 at 416. Hand check of 60 random Open Images plate crops: 10 US, 8 UK, 16 continental Europe, 2 other (Brazil, Belize), 23 too small/blurry to identify, 1 not a plate (hazard placard). Asia is represented almost only by CCPD (green plates). Open items before T3: owner review of this dataset, holdout substitute, small-box handling, CCPD2019 when Drive allows.
 - 2026-11-12: Owner reviewed the full T1 dataset and approved it; T1 closed. Traced the 10 US plates from the spot-check to image IDs (one tile had been mislabelled in my notes and was corrected). Proposed the T2 plan. A web search found no RT-DETRv2-R18 plate model trained on Open Images: RT-DETRv2-R18 checkpoints are COCO-only, and the public plate fine-tunes are R50 trained on Roboflow data of unknown licence.
+- 2026-11-12: T2 on `t2-baseline`. Added `postprocess.py`, `eval/metrics.py`, `eval/baseline.py`, `make baseline`, ADR-0007, `docs/preprocessing.md`, `docs/baseline.md`; new deps numpy (BSD-3) and onnxruntime (MIT). `make lint` clean, `make test` 56 passed. YOLOX-Tiny COCO at 416 (official ONNX, SHA-256 427cc366…): test vehicle recall 0.687 @0.3 (target 0.90), FP/image 1.49, AP@0.5 0.582; val 0.703 / 1.33 / 0.596. Recall is 0.45 for vehicles under 1% of image area (a third of boxes) and over 0.8 for larger ones. The largest misses are Open Images full-frame vehicle labels (plate close-ups, in-car shots). Run `runs/baseline-yolox_tiny_coco-20261112-221740`.

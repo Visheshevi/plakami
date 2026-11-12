@@ -8,6 +8,8 @@ dependencies = [
     "ImageHash>=4.3,<5", # BSD-2-Clause: perceptual image hashes for deduplication.
     "Pillow>=11,<13", # HPND: validate images and collect dimensions.
     "PyYAML>=6.0,<7", # MIT: load dataset configuration files.
+    "numpy>=2,<3", # BSD-3-Clause: array maths for pre/post-processing and metrics.
+    "onnxruntime>=1.20,<2", # MIT: run ONNX models for baselines, eval and parity.
     "pyarrow>=19,<25", # Apache-2.0: write the required Parquet manifest.
 ]
 

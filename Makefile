@@ -1,4 +1,4 @@
-.PHONY: setup data data-combine test lint
+.PHONY: setup data data-combine baseline test lint
 
 DATA_CONFIG ?= configs/data/open_images.yaml
 
@@ -10,6 +10,9 @@ data:
 
 data-combine:
 	PYTHONPATH=src uv run --locked python -m platedet.data.combine --config configs/data/combined.yaml
+
+baseline:
+	PYTHONPATH=src uv run --locked python -m platedet.eval.baseline --config $(CONFIG)
 
 test:
 	PYTHONPATH=src uv run --locked pytest

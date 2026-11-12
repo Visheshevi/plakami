@@ -1,0 +1,22 @@
+# T2 baseline: official YOLOX-Tiny COCO checkpoint (Apache-2.0), vehicles only.
+# COCO has no licence-plate class, so plate metrics are not applicable for this model.
+name: yolox_tiny_coco
+model:
+  url: https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_tiny.onnx
+  path: data/models/yolox_tiny.onnx
+  sha256: 427cc366d34e27ff7a03e2899b5e3671425c262ea2291f88bb942bc1cc70b0f7
+  licence: Apache-2.0
+  input_size: 416        # the official ONNX file has a fixed 416x416 input
+  channel_order: bgr     # official weights were trained on OpenCV (BGR) images
+  class_map:             # COCO model index -> our class ID (2 = vehicle)
+    2: 2                 # car
+    3: 2                 # motorcycle
+    5: 2                 # bus
+    7: 2                 # truck
+dataset_dir: data/processed/combined
+splits: [val, test]
+collect_conf: 0.01       # keep low-score boxes for AP; recall uses the SPEC thresholds below
+nms_iou: 0.45
+plate_conf: 0.2
+vehicle_conf: 0.3
+gallery_size: 30
