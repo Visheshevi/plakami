@@ -1,6 +1,6 @@
 # Project Progress
 
-## Current step: T1 — Data (Open Images source implementation)
+## Current step: T2 — Baseline (planning; awaiting owner approval)
 
 ### T0 — Scaffold
 
@@ -8,7 +8,7 @@
 - [x] `make setup`, `make lint`, and `make test` pass locally
 - [ ] Hosted CI run (requires Git and a remote; deferred by owner)
 
-### T1 — Data (current)
+### T1 — Data (done)
 
 - [x] Confirmed 80/10/10 deterministic split ratios
 - [x] Implemented first source: capped Open Images V6 parsing, download, COCO conversion, manifest, attribution, and pHash deduplication
@@ -26,15 +26,14 @@
 - [x] Fix COCO `file_name` dropping subfolders and Open Images `.jpg` lookup in combine
 - [x] Plate-first Open Images sampling (config-driven plate/vehicle mix), rebuild capped sample
 - [x] Build and review the combined dataset and stats report (100-image samples per source)
-- [x] Full-size data build and stats report (Open Images 7,600 via CVDF, Kaggle all, CCPD2020 6,000 before cap); awaiting owner review
+- [x] Full-size data build and stats report (Open Images 7,600 via CVDF, Kaggle all, CCPD2020 6,000 before cap)
+- [x] Owner reviewed and approved the full combined dataset (2026-11-12)
 
 Bounded sample results (`MAX_IMAGES=100`): 83 usable images; 17 image URLs returned HTTP 404/410; 0 rows excluded for missing/unapproved licence or attribution; 0 near-duplicates; 65 train / 7 val / 11 test; 1 plate box and 186 vehicle boxes. All manifest rows have CC BY 2.0 metadata and attribution fields, and all referenced files exist. This sample is for pipeline validation only, not for training-quality conclusions.
 
 ### Next up
 
-Sample-level T1 is complete. Remaining T1 item: a full-size data build (owner to confirm image counts before downloading; CCPD2020 full archive and Open Images CSVs are already local; CCPD2019 still quota-blocked). Also to agree before T3: a substitute for the owner-photo `holdout`. Earlier context:
-
-Open Images V6 and Kaggle CC0 have bounded real-data samples; CCPD parsing/build support and the combined merge/cap pipeline are implemented and covered by synthetic tests. The guarded Colab helper has now downloaded the approximately 12.26 GiB CCPD archive and retained 100 deterministic images from 355,013 JPEGs. Full T1 still needs the sample bundle transferred into the workspace, local CCPD validation, and the combined dataset build/report. The owner approved metadata-listed CC BY 2.0 for the capped Open Images sample; the upstream per-image licence disclaimer remains recorded in ADR-0002.
+T2 Baseline: plan proposed to the owner (2026-11-12); no T2 code until approved. Open questions: the SPEC §6 plate baseline (no RT-DETRv2-R18 Open Images plate model with a known licence could be found), the holdout substitute, and small-box handling. CCPD2019 is still quota-blocked.
 
 ### Open owner decisions
 
@@ -81,3 +80,4 @@ Open Images V6 and Kaggle CC0 have bounded real-data samples; CCPD parsing/build
 - 2026-11-09: Built the combined dataset from the three 100-image samples on `t1-combined-dataset-report`: 271 images (224/30/17), 311 plate and 216 vehicle boxes; 0 cross-source duplicates; CCPD 29.9% of plates (6 images dropped by the 30% cap); 184 plate-only and 87 fully labelled images; all licences allowlisted, none empty. Plate width p10/p50/p90 = 25/140/407 px; 47 plates under 32 px wide; boxes under 6 px short side: 12 at 640, 37 at 416 (reported, not dropped). Sample is too small for training conclusions (e.g. only 1 CCPD image in test). `make lint` clean, `make test` 35 passed.
 - 2026-11-10: First full build (Kaggle 433, CCPD 3000, Open Images 2500) exposed two bugs: all CCPD images landed in `train` (sampling and cap hashed the same key as the split) and Flickr returned HTTP 429 for 2,359 of 2,500 images. Fixed both on `t1-fix-sampling-and-rate-limits` (4 new tests, confirmed failing on old code; `make test` 39 passed, lint clean). Kaggle's 136 removed images are exact pHash duplicates (dataset repeats 86 images), so dedupe is correct. Rebuild: CCPD 2,990 images split 2428/279/283; Kaggle 297; Open Images still 122 (Flickr throttling plus Mac sleep/network drop at 01:38). Combined: 627 images, 695 plate / 310 vehicle boxes, CCPD 29.9% (2,782 CCPD images dropped by the cap because Open Images is small). Open Images' official download page points to CVDF hosting (`downloader.py`, Apache-2.0, bucket `open-images-dataset`); a HEAD check of one image returned 200, 166 KB vs 1 MB from Flickr. Switching the image host needs owner approval and an ADR.
 - 2026-11-11: Switched Open Images image downloads to CVDF (ADR-0006, owner approved) on `t1-open-images-cvdf-host`; `make test` 40 passed, lint clean. Full build (kept awake with `caffeinate`, log `data/logs/full-build-20261111-2252.log`): Open Images 7,599 of 7,600 (1 network error), 6,079 with plates, 8,819 plate / 21,156 vehicle boxes, 2.2 GB, images max 1,024 px; CCPD2020 5,967 (30 near-duplicates); Kaggle 297. Combined: 11,815 images (9,503 / 1,121 / 1,191), 13,067 plate / 21,155 vehicle boxes, CCPD 30.0% (2,047 dropped by cap), 1 cross-source duplicate, all licences allowlisted with authors. Plate width p10/p50/p90 = 23/108/371 px; 2,445 plates under 32 px wide; under 6 px short side: 867 at 640, 2,443 at 416. Hand check of 60 random Open Images plate crops: 10 US, 8 UK, 16 continental Europe, 2 other (Brazil, Belize), 23 too small/blurry to identify, 1 not a plate (hazard placard). Asia is represented almost only by CCPD (green plates). Open items before T3: owner review of this dataset, holdout substitute, small-box handling, CCPD2019 when Drive allows.
+- 2026-11-12: Owner reviewed the full T1 dataset and approved it; T1 closed. Traced the 10 US plates from the spot-check to image IDs (one tile had been mislabelled in my notes and was corrected). Proposed the T2 plan. A web search found no RT-DETRv2-R18 plate model trained on Open Images: RT-DETRv2-R18 checkpoints are COCO-only, and the public plate fine-tunes are R50 trained on Roboflow data of unknown licence.
