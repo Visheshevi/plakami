@@ -27,6 +27,11 @@ IMAGE_METADATA_URLS = {
     "validation": "https://storage.googleapis.com/openimages/2018_04/validation/validation-images.csv",
 }
 
+# Official CVDF hosting linked from the Open Images V6 download page (ADR-0006).
+CVDF_IMAGE_BASE_URL = "https://open-images-dataset.s3.amazonaws.com"
+CVDF_SPLITS = {"train", "validation"}
+IMAGE_HOSTS = {"flickr", "cvdf"}
+
 TARGET_LABELS = {
     "vehicle registration plate": 1,
     "car": 2,
@@ -108,12 +113,20 @@ def select_candidates(
 
 
 def read_image_metadata(
-    paths: list[Path], selected_ids: set[str]
+    paths: dict[str, Path], selected_ids: set[str], image_host: str = "flickr"
 ) -> tuple[dict[str, dict[str, str]], int]:
-    """Return metadata for selected IDs; count rows excluded for unknown licences."""
+    """Return metadata for selected IDs; count rows excluded for unknown licences.
+
+    `paths` maps each Open Images split (`train`, `validation`) to its metadata CSV.
+    `image_host` picks where image bytes come from: `flickr` (the row's OriginalURL)
+    or `cvdf` (the official CVDF mirror, by split and ID). Attribution always comes
+    from the metadata row.
+    """
+    if image_host not in IMAGE_HOSTS:
+        raise ValueError(f"image_host must be one of {sorted(IMAGE_HOSTS)}")
     selected: dict[str, dict[str, str]] = {}
     unapproved_licences = 0
-    for path in paths:
+    for split, path in paths.items():
         with path.open(encoding="utf-8", newline="") as stream:
             for row in csv.DictReader(stream):
                 image_id = row.get("ImageID", "").lower()
@@ -124,10 +137,15 @@ def read_image_metadata(
                     continue
                 author = row.get("Author", "").strip()
                 landing_url = row.get("OriginalLandingURL", "").strip()
-                image_url = row.get("OriginalURL", "").strip()
                 if not author or not landing_url.startswith(("https://", "http://")):
                     unapproved_licences += 1
                     continue
+                if image_host == "cvdf":
+                    if split not in CVDF_SPLITS or not IMAGE_ID_PATTERN.fullmatch(image_id):
+                        continue
+                    image_url = f"{CVDF_IMAGE_BASE_URL}/{split}/{image_id}.jpg"
+                else:
+                    image_url = row.get("OriginalURL", "").strip()
                 if not image_url.startswith(("https://", "http://")):
                     continue
                 selected[image_id] = {

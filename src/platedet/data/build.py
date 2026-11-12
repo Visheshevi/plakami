@@ -23,6 +23,7 @@ from platedet.data.open_images import (
     ANNOTATION_URLS,
     CLASS_DESCRIPTIONS_URL,
     COCO_CATEGORIES,
+    IMAGE_HOSTS,
     IMAGE_METADATA_URLS,
     download_image,
     download_url,
@@ -168,6 +169,9 @@ def build_dataset(config_path: Path, max_images: int | None) -> dict[str, int]:
     workers = int(config.get("download_workers", 4))
     if workers < 1:
         raise ValueError("download_workers must be positive")
+    image_host = str(config.get("image_host", "flickr"))
+    if image_host not in IMAGE_HOSTS:
+        raise ValueError(f"image_host must be one of {sorted(IMAGE_HOSTS)}")
     plate_fraction = float(config.get("plate_image_fraction", 0.0))
     if not 0 <= plate_fraction <= 1:
         raise ValueError("plate_image_fraction must be in [0, 1]")
@@ -179,7 +183,7 @@ def build_dataset(config_path: Path, max_images: int | None) -> dict[str, int]:
         any(box["category_id"] == 1 for box in annotations[key]) for key in candidates
     )
     selected_ids = set(candidates)
-    metadata, excluded_licences = read_image_metadata(list(metadata_paths.values()), selected_ids)
+    metadata, excluded_licences = read_image_metadata(metadata_paths, selected_ids, image_host)
     missing_metadata = selected_ids - metadata.keys()
     image_dir = processed_dir / "images"
     results: list[ManifestRecord] = []
@@ -256,6 +260,7 @@ def build_dataset(config_path: Path, max_images: int | None) -> dict[str, int]:
     stats = {
         "source": "open_images_v6",
         "requested_max_images": max_images,
+        "image_host": image_host,
         "plate_image_fraction": plate_fraction,
         "selected_plate_images": plate_candidates,
         "selected_vehicle_only_images": len(candidates) - plate_candidates,

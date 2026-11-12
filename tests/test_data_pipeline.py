@@ -15,7 +15,12 @@ from platedet.data.manifest import (
     validate_license,
     write_manifest,
 )
-from platedet.data.open_images import load_class_ids, read_target_annotations, select_candidates
+from platedet.data.open_images import (
+    load_class_ids,
+    read_image_metadata,
+    read_target_annotations,
+    select_candidates,
+)
 from platedet.data.split import assign_split, validate_split_ratios
 
 
@@ -185,3 +190,30 @@ def test_select_candidates_fills_shortfall_and_validates_fraction() -> None:
     assert len(select_candidates(_annotations(3, 4), 100, 0.8)) == 7
     with pytest.raises(ValueError, match="plate_image_fraction"):
         select_candidates(few_vehicles, 10, 1.5)
+
+
+def test_image_metadata_uses_cvdf_host_but_keeps_flickr_attribution(tmp_path: Path) -> None:
+    path = tmp_path / "train-images.csv"
+    path.write_text(
+        "ImageID,OriginalURL,OriginalLandingURL,License,Author\n"
+        f"0123456789ABCDEF,https://farm.test/o.jpg,https://flickr.test/p/1,"
+        f"{OPEN_IMAGES_LICENSE_URL},Example Author\n"
+        f"fedcba9876543210,https://farm.test/x.jpg,https://flickr.test/p/2,"
+        "https://example.test/other-licence,Someone\n",
+        encoding="utf-8",
+    )
+    ids = {"0123456789abcdef", "fedcba9876543210"}
+
+    cvdf, excluded = read_image_metadata({"train": path}, ids, "cvdf")
+    flickr, _ = read_image_metadata({"train": path}, ids, "flickr")
+
+    item = cvdf["0123456789abcdef"]
+    assert item["image_url"] == (
+        "https://open-images-dataset.s3.amazonaws.com/train/0123456789abcdef.jpg"
+    )
+    assert item["landing_url"] == "https://flickr.test/p/1"
+    assert item["author"] == "Example Author"
+    assert flickr["0123456789abcdef"]["image_url"] == "https://farm.test/o.jpg"
+    assert excluded == 1 and "fedcba9876543210" not in cvdf
+    with pytest.raises(ValueError, match="image_host"):
+        read_image_metadata({"train": path}, ids, "s3-anywhere")

@@ -8,5 +8,6 @@ split_ratios:
   val: 0.1
   test: 0.1
 phash_distance: 4
-download_workers: 2
+download_workers: 8
+image_host: cvdf
 plate_image_fraction: 0.8
