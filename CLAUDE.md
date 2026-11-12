@@ -37,6 +37,8 @@ T0 Scaffold → T1 Data → T2 Baseline → T3 Train v0 → T4 Iterate → T5 Ex
 ```
 make setup      # uv sync: create the venv with pinned dependencies
 make data       # download allowlisted sources, build COCO dataset + manifest, licence check
+make holdout-prepare   # download holdout candidates + review sheets (ADR-0008)
+make holdout-finalize  # build the holdout from configs/holdout/review.csv
 make baseline CONFIG=configs/baseline/<name>.yaml  # evaluate an off-the-shelf ONNX model on val/test
 make train CONFIG=configs/<name>.yaml   # train a run into runs/<run_id>/
 make eval RUN=<run_id>                  # metrics + error gallery on val/test/holdout

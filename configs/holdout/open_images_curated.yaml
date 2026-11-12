@@ -1,0 +1,10 @@
+# Curated evaluation-only holdout (ADR-0008). Never train, tune or calibrate on it.
+data_dir: data
+candidates: 300            # plate images to download for review; aim for about 200 accepted
+download_workers: 8
+phash_distance: 4          # drop near-duplicates of anything in the combined dataset
+review_file: configs/holdout/review.csv   # image_id,decision,reason (IDs only; no images or boxes)
+# Candidates come from the official Open Images test split, which the training build never
+# reads. Pinned so a config change can't make the holdout overlap training data.
+source_splits: [test]
+training_source_splits: [train, validation]   # from configs/data/open_images.yaml

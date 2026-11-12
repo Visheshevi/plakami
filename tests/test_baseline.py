@@ -67,7 +67,7 @@ def test_baseline_writes_summary_with_vehicle_metrics_and_no_plate_metrics(tmp_p
     # The stray box on the plate-only image is not a false positive.
     assert vehicle["false_positives_per_image"] == 1.0
     assert summary["metrics"]["val"]["license_plate"] is None
-    assert summary["checkpoint_sha256"] == "abc" and summary["dataset_manifest_sha256"]
+    assert summary["checkpoint_sha256"] == "abc" and len(summary["dataset_manifest_sha256"]) == 1
     assert (run_dir / "config.yaml").is_file()
     assert len((run_dir / "predictions_val.jsonl").read_text().splitlines()) == 2
 
@@ -86,3 +86,37 @@ def test_prepare_model_rejects_wrong_checkpoint_hash(tmp_path):
     model_path.write_bytes(b"not the real model")
     with pytest.raises(ValueError, match="SHA-256 mismatch"):
         _prepare_model({"path": str(model_path), "url": "https://example.invalid", "sha256": "0"})
+
+
+def test_baseline_scores_holdout_from_its_own_folder(tmp_path):
+    config_path = _dataset(tmp_path)
+    holdout = tmp_path / "holdout"
+    (holdout / "annotations").mkdir(parents=True)
+    (holdout / "images").mkdir()
+    Image.new("RGB", (50, 50)).save(holdout / "images" / "h.jpg")
+    (holdout / "manifest.csv").write_text("image_id\nh\n")
+    (holdout / "annotations" / "holdout.json").write_text(
+        json.dumps(
+            {
+                "images": [
+                    {
+                        "id": 1,
+                        "file_name": "images/h.jpg",
+                        "width": 50,
+                        "height": 50,
+                        "annotated_classes": ["license_plate"],
+                    }
+                ],
+                "annotations": [{"id": 1, "image_id": 1, "category_id": 1, "bbox": [1, 1, 20, 8]}],
+                "categories": [{"id": 1, "name": "license_plate"}, {"id": 2, "name": "vehicle"}],
+            }
+        )
+    )
+    config = yaml.safe_load(config_path.read_text())
+    config.update(splits=["val", "holdout"], holdout_dir=str(holdout))
+    config_path.write_text(yaml.safe_dump(config))
+    run_dir = run_baseline(config_path, runs_dir=tmp_path / "runs", predictor=lambda image: [])
+    summary = json.loads((run_dir / "summary.json").read_text())
+    assert summary["metrics"]["holdout"]["images"] == 1
+    assert summary["metrics"]["holdout"]["vehicle"]["images"] == 0
+    assert len(summary["dataset_manifest_sha256"]) == 2

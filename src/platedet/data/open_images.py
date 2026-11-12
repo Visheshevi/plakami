@@ -21,15 +21,17 @@ CLASS_DESCRIPTIONS_URL = "https://storage.googleapis.com/openimages/v6/oidv6-cla
 ANNOTATION_URLS = {
     "train": "https://storage.googleapis.com/openimages/v6/oidv6-train-annotations-bbox.csv",
     "validation": "https://storage.googleapis.com/openimages/v5/validation-annotations-bbox.csv",
+    "test": "https://storage.googleapis.com/openimages/v5/test-annotations-bbox.csv",
 }
 IMAGE_METADATA_URLS = {
     "train": "https://storage.googleapis.com/openimages/2018_04/train/train-images-boxable.csv",
     "validation": "https://storage.googleapis.com/openimages/2018_04/validation/validation-images.csv",
+    "test": "https://storage.googleapis.com/openimages/2018_04/test/test-images-with-rotation.csv",
 }
 
 # Official CVDF hosting linked from the Open Images V6 download page (ADR-0006).
 CVDF_IMAGE_BASE_URL = "https://open-images-dataset.s3.amazonaws.com"
-CVDF_SPLITS = {"train", "validation"}
+CVDF_SPLITS = {"train", "validation", "test"}
 IMAGE_HOSTS = {"flickr", "cvdf"}
 
 TARGET_LABELS = {

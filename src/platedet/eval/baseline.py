@@ -33,7 +33,7 @@ from platedet.eval.metrics import (
 from platedet.postprocess import DEFAULT_NMS_IOU, Detection, letterbox, postprocess
 
 LOGGER = logging.getLogger("platedet.eval")
-EVAL_SPLITS = ("train", "val", "test")
+EVAL_SPLITS = ("train", "val", "test", "holdout")
 Predictor = Callable[[Image.Image], list[Detection]]
 
 
@@ -175,13 +175,21 @@ def write_gallery(
     return details
 
 
+def _split_dir(config: dict[str, Any], split: str) -> Path:
+    """The holdout lives in its own folder (`holdout_dir`); other splits in `dataset_dir`."""
+    if split == "holdout":
+        if "holdout_dir" not in config:
+            raise ValueError("Split 'holdout' needs holdout_dir in the config")
+        return Path(config["holdout_dir"])
+    return Path(config["dataset_dir"])
+
+
 def evaluate(
     config: dict[str, Any],
     predictor: Predictor,
     run_dir: Path,
 ) -> dict[str, Any]:
     """Run `predictor` on each configured split and write predictions, metrics and galleries."""
-    dataset_dir = Path(config["dataset_dir"])
     class_map = {int(k): int(v) for k, v in config["model"]["class_map"].items()}
     model_classes = frozenset(class_map.values())
     metrics: dict[str, Any] = {}
@@ -189,6 +197,7 @@ def evaluate(
     for split in config["splits"]:
         if split not in EVAL_SPLITS:
             raise ValueError(f"Unknown split {split!r}")
+        dataset_dir = _split_dir(config, split)
         images = load_split(dataset_dir, split)
         LOGGER.info("Evaluating %s: %d images", split, len(images))
         with (run_dir / f"predictions_{split}.jsonl").open("w", encoding="utf-8") as stream:
@@ -246,8 +255,10 @@ def run_baseline(
     if not isinstance(config, dict):
         raise ValueError("Baseline config must be a YAML mapping")
     model = config["model"]
-    dataset_dir = Path(config["dataset_dir"])
-    manifest_hash = sha256_file(dataset_dir / "manifest.csv")
+    manifest_hashes = {
+        str(directory): sha256_file(directory / "manifest.csv")
+        for directory in {_split_dir(config, split) for split in config["splits"]}
+    }
     if predictor is None:
         model_path = _prepare_model(model)
         predictor = OnnxYoloxPredictor(
@@ -271,7 +282,7 @@ def run_baseline(
         "kind": "baseline",
         "git": _git_state(),
         "config": config,
-        "dataset_manifest_sha256": manifest_hash,
+        "dataset_manifest_sha256": manifest_hashes,
         "checkpoint_sha256": checkpoint_hash,
         "model_url": model.get("url"),
         **results,
