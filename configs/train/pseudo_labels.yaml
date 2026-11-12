@@ -1,0 +1,14 @@
+# Vehicle pseudo-labels for plate-only training images (ADR-0011). Training labels only.
+model:
+  url: https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_l.onnx
+  path: data/models/yolox_l.onnx
+  sha256: 7860ae79de6c89a3c1eb72ae9a2756c0ccfbe04b7791bb5880afabd97855a411
+  licence: Apache-2.0
+  input_size: 640
+  channel_order: bgr
+  class_map: {2: 2, 3: 2, 5: 2, 7: 2}   # COCO car, motorcycle, bus, truck -> vehicle
+dataset_dir: data/processed/combined
+splits: [train, val]
+score_threshold: 0.5
+nms_iou: 0.45
+output: data/processed/pseudo_labels/yolox_l_vehicles.json

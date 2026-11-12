@@ -4,12 +4,13 @@ The reference implementation is [`src/platedet/postprocess.py`](../src/platedet/
 
 ## Pre-processing (`letterbox`)
 
-1. Decode the image, apply EXIF orientation if your platform doesn't do it automatically, and convert it to 3-channel RGB.
+1. Decode the image to 3-channel 8-bit pixels. Our training data has no EXIF-rotated images; for phone photos, apply the EXIF orientation before step 2 so the image is upright.
 2. `ratio = min(S / width, S / height)`, where `S` is the model input size (from `release.json`).
-3. Resize to `round(width * ratio) × round(height * ratio)` with bilinear filtering (Pillow `BILINEAR`).
-4. Paste the resized image at the **top-left** of an `S × S` canvas filled with **114** on all channels. This matches YOLOX: the padding goes on the right and bottom, not centred.
-5. Use float32 values in 0–255, with **no mean/std normalisation**, laid out as NCHW `(1, 3, S, S)`.
-6. Channel order: the model's `channel_order`. The official YOLOX COCO weights expect **BGR**. The SPEC §5 contract is RGB; our own models' order is fixed in T3 and recorded in `release.json`.
+3. The target size is `int(width * ratio) × int(height * ratio)`, **truncated** as YOLOX does.
+4. Resize with bilinear interpolation using **OpenCV `INTER_LINEAR` semantics**: source coordinate `(dst + 0.5) * src / dst - 0.5`, clamped to the edges, with no antialiasing, rounded to uint8. Our NumPy version is within 1 grey level of `cv2.resize`.
+5. Paste the resized image at the **top-left** of an `S × S` canvas filled with **114** on all channels. This matches YOLOX: the padding goes on the right and bottom, not centred.
+6. Channel order is **BGR** for every model trained in this project and for the official YOLOX COCO weights (ADR-0010). It is recorded as `channel_order`.
+7. Use float32 values in 0–255, with **no mean/std normalisation**, laid out as NCHW `(1, 3, S, S)`.
 
 ## Post-processing (`postprocess`)
 

@@ -3,9 +3,13 @@
 This module is the single implementation shipped with releases. Keep it dependency-light
 (NumPy + Pillow) so it is easy to port.
 
-Pre-processing follows YOLOX `ValTransform(legacy=False)`:
-  - resize keeping the aspect ratio so the longer side fits `size` (bilinear),
+Pre-processing matches YOLOX `ValTransform(legacy=False)` on an OpenCV-loaded image:
+  - ratio = min(size / width, size / height); new size = int(width * ratio) x int(height * ratio)
+    (truncated, as YOLOX does),
+  - bilinear resize with OpenCV `INTER_LINEAR` semantics (half-pixel centres, edge clamping,
+    no antialiasing), rounded to uint8,
   - paste at the top-left of a `size` x `size` canvas filled with 114,
+  - channel order BGR for YOLOX-trained models (ADR-0010),
   - float32 values in 0-255, no mean/std, channels-first, batch of 1.
 
 Post-processing:
@@ -26,6 +30,7 @@ PAD_VALUE = 114
 STRIDES = (8, 16, 32)
 DEFAULT_NMS_IOU = 0.45
 CHANNEL_ORDERS = ("rgb", "bgr")
+DEFAULT_CHANNEL_ORDER = "bgr"
 
 
 @dataclass(frozen=True)
@@ -40,17 +45,39 @@ class Detection:
     class_id: int
 
 
+def _axis_weights(source: int, target: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Lower index, upper index and upper weight for OpenCV-style linear interpolation."""
+    position = (np.arange(target, dtype=np.float64) + 0.5) * (source / target) - 0.5
+    position = np.clip(position, 0, source - 1)
+    lower = np.floor(position).astype(np.int64)
+    upper = np.minimum(lower + 1, source - 1)
+    return lower, upper, (position - lower)
+
+
+def resize_bilinear(pixels: np.ndarray, width: int, height: int) -> np.ndarray:
+    """Resize an (H, W, C) uint8 array like `cv2.resize(..., INTER_LINEAR)` (within 1 level)."""
+    y0, y1, wy = _axis_weights(pixels.shape[0], height)
+    x0, x1, wx = _axis_weights(pixels.shape[1], width)
+    data = pixels.astype(np.float64)
+    wx = wx[None, :, None]
+    top = data[y0][:, x0] * (1 - wx) + data[y0][:, x1] * wx
+    bottom = data[y1][:, x0] * (1 - wx) + data[y1][:, x1] * wx
+    blended = top * (1 - wy[:, None, None]) + bottom * wy[:, None, None]
+    return np.clip(np.rint(blended), 0, 255).astype(np.uint8)
+
+
 def letterbox(
-    image: Image.Image, size: int, channel_order: str = "rgb"
+    image: Image.Image, size: int, channel_order: str = DEFAULT_CHANNEL_ORDER
 ) -> tuple[np.ndarray, float]:
     """Return a (1, 3, size, size) float32 tensor and the resize ratio."""
     if channel_order not in CHANNEL_ORDERS:
         raise ValueError(f"channel_order must be one of {CHANNEL_ORDERS}")
-    image = image.convert("RGB")
-    ratio = min(size / image.width, size / image.height)
-    new_width = max(1, round(image.width * ratio))
-    new_height = max(1, round(image.height * ratio))
-    resized = np.asarray(image.resize((new_width, new_height), Image.Resampling.BILINEAR))
+    pixels = np.asarray(image.convert("RGB"))
+    height, width = pixels.shape[:2]
+    ratio = min(size / width, size / height)
+    new_width = max(1, int(width * ratio))
+    new_height = max(1, int(height * ratio))
+    resized = resize_bilinear(pixels, new_width, new_height)
     canvas = np.full((size, size, 3), PAD_VALUE, dtype=np.float32)
     canvas[:new_height, :new_width] = resized
     if channel_order == "bgr":

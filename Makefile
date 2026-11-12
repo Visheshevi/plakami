@@ -1,9 +1,10 @@
-.PHONY: setup data data-combine holdout-prepare holdout-finalize baseline test lint
+.PHONY: pseudo-labels train-data train export eval colab-bundle setup data data-combine holdout-prepare holdout-finalize baseline test lint
 
 DATA_CONFIG ?= configs/data/open_images.yaml
 
 setup:
 	uv sync --locked
+	PYTHONPATH=src uv run --locked python -m platedet.train.yolox_src
 
 data:
 	PYTHONPATH=src uv run --locked python -m platedet.data.build --config $(DATA_CONFIG) $(if $(MAX_IMAGES),--max-images $(MAX_IMAGES),)
@@ -17,10 +18,29 @@ holdout-prepare:
 holdout-finalize:
 	PYTHONPATH=src uv run --locked python -m platedet.data.holdout finalize --config configs/holdout/open_images_curated.yaml
 
+pseudo-labels:
+	PYTHONPATH=src uv run --locked python -m platedet.train.pseudo_labels --config configs/train/pseudo_labels.yaml
+
+train-data:
+	PYTHONPATH=src uv run --locked python -m platedet.train.dataset --config $(CONFIG)
+
+train:
+	PYTHONPATH=src uv run --locked python -m platedet.train.train --config $(CONFIG)
+
+export:
+	PYTHONPATH=src uv run --locked python -m platedet.export.onnx_export --run-dir runs/$(RUN)
+
+eval:
+	PYTHONPATH=src uv run --locked python -m platedet.eval.evaluate_run --run $(RUN)
+
+colab-bundle:
+	PYTHONPATH=src uv run --locked python -m platedet.train.colab_bundle
+
 baseline:
 	PYTHONPATH=src uv run --locked python -m platedet.eval.baseline --config $(CONFIG)
 
 test:
+	PYTHONPATH=src uv run --locked python -m platedet.train.yolox_src >/dev/null
 	PYTHONPATH=src uv run --locked pytest
 
 lint:
