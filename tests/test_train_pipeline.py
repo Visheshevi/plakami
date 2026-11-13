@@ -329,3 +329,22 @@ def test_local_trainer_runs_on_apple_gpu(synthetic_training_dir, tmp_path):
     run_dir = train(config, runs_dir=tmp_path / "runs", run_id="mps", device="mps")
     info = json.loads((run_dir / "run_info.json").read_text())
     assert info["environment"]["device"] == "mps" and info["best_checkpoint_sha256"]
+
+
+def test_standard_cocoeval_scores_detections_without_compiling(synthetic_training_dir, tmp_path):
+    torch = pytest.importorskip("torch")
+    from platedet.train.exp import make_exp
+    from platedet.train.local_trainer import standard_cocoeval
+
+    config = {"name": "x", "input_size": 64, "data": {"training_dir": str(synthetic_training_dir)}}
+    config["train"] = {"data_num_workers": 0}
+    evaluator = make_exp(config, tmp_path).get_evaluator(batch_size=2, is_distributed=False)
+    detections = [
+        {"image_id": i, "category_id": c, "bbox": box, "score": 0.9, "segmentation": []}
+        for i in range(1, 7)
+        for c, box in ((2, [20, 30, 120, 70]), (1, [60, 80, 40, 12]))
+    ]
+    with standard_cocoeval():
+        ap50_95, ap50, summary = evaluator.evaluate_prediction(detections, torch.ones(3))
+    assert ap50 == pytest.approx(1.0) and ap50_95 == pytest.approx(1.0)
+    assert "Average Precision" in summary

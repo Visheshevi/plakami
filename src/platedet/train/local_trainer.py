@@ -43,6 +43,27 @@ def mps_type_names() -> Iterator[None]:
         torch.Tensor.type = original  # type: ignore[method-assign]
 
 
+@contextlib.contextmanager
+def standard_cocoeval() -> Iterator[None]:
+    """Score with pycocotools' COCOeval instead of YOLOX's C++ `COCOeval_opt`.
+
+    `COCOeval_opt` compiles a C++ extension on first use and needs `ninja` plus a compiler;
+    without them it raises RuntimeError, which YOLOX doesn't catch. Same metrics, slower.
+    """
+    import yolox.layers
+    from pycocotools.cocoeval import COCOeval
+
+    original = getattr(yolox.layers, "COCOeval_opt", None)
+    yolox.layers.COCOeval_opt = COCOeval
+    try:
+        yield
+    finally:
+        if original is None:
+            del yolox.layers.COCOeval_opt
+        else:
+            yolox.layers.COCOeval_opt = original
+
+
 def pick_device() -> str:
     if torch.cuda.is_available():
         return "cuda"
@@ -226,6 +247,8 @@ def make_local_trainer(exp: Any, args: Any, device: str) -> Any:
             statistics = torch.tensor(
                 [inference_time, nms_time, max(len(evaluator.dataloader), 1)], dtype=torch.float32
             )
-            return evaluator.evaluate_prediction(data_list, statistics), outputs_by_image
+            with standard_cocoeval():
+                results = evaluator.evaluate_prediction(data_list, statistics)
+            return results, outputs_by_image
 
     return LocalTrainer()
