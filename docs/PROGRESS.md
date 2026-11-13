@@ -62,6 +62,7 @@ Bounded sample results (`MAX_IMAGES=100`): 83 usable images; 17 image URLs retur
 - GitHub repository creation and remote setup are deferred.
 - Local Git is not initialized; no task branch or commit exists.
 - Proposed data and evaluation targets in SPEC §§4–6 remain unconfirmed.
+- 2026-11-12: Owner wants a configurable redaction (blur) tool after T3, for use across several apps. Settings are passed per call and per class (style blur/pixelate/solid, strength, colour with alpha, padding, corner shape and edge softness, per-class confidence, which classes). Deliverables: Python reference in the release, plus a documented settings spec with test vectors so Kotlin/Swift apps can match it. Plan to be written after T3 results.
 - 2026-11-12: Owner wants face blurring added after T3 (a third class from Open Images "Human face" labels; plan to be written before T4). Phone-number blurring is a possible later version (needs text detection plus OCR).
 - 2026-11-12: Proposed SPEC §5 wording change for BGR input and OpenCV-style resize (ADR-0010), awaiting the owner.
 - 2026-11-12: Proposed SPEC §6 wording change for the dropped plate baseline (ADR-0007), awaiting the owner. Channel order for our own models (SPEC §5 says RGB; the official YOLOX trainer reads BGR) is to be fixed in the T3 plan.
