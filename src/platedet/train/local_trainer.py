@@ -57,6 +57,11 @@ def memory_mb(device: str) -> float:
     return 0.0
 
 
+def release_cache(device: str) -> None:
+    if device == "mps":
+        torch.mps.empty_cache()
+
+
 class _Batches:
     """Stand-in for YOLOX's CUDA-stream `DataPrefetcher`: next batch, moved to the device."""
 
@@ -166,6 +171,9 @@ def make_local_trainer(exp: Any, args: Any, device: str) -> Any:
                 self.meter.clear_meters()
             if (self.progress_in_iter + 1) % 10 == 0:
                 self.input_size = self._random_size()
+                # MPS keeps cached buffers for every input size it has seen; without this,
+                # multi-scale training (480-800 px) grows until macOS swaps (ADR-0012).
+                release_cache(self.device)
 
         def _random_size(self) -> tuple[int, int]:
             """`Exp.random_resize` without its CUDA tensor (single process)."""
@@ -191,6 +199,7 @@ def make_local_trainer(exp: Any, args: Any, device: str) -> Any:
             self.tblogger.add_scalar("val/COCOAP50_95", ap50_95, self.epoch + 1)
             logger.info("\n" + summary)
             self.save_ckpt("last_epoch", update_best, ap=ap50_95)
+            release_cache(self.device)
 
         def _evaluate(self, model: Any) -> Any:
             """`COCOEvaluator.evaluate` on this device (val split only; selects best_ckpt)."""
