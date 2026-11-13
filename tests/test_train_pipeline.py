@@ -248,3 +248,84 @@ def test_smoke_train_step_and_onnx_export(synthetic_training_dir, tmp_path):
         raw, size=64, ratio=ratio, image_width=160, image_height=120, conf_threshold=0.0
     )
     assert all(d.class_id in (1, 2) for d in detections)
+
+
+def _local_run_config(tmp_path, training_dir, max_epoch):
+    torch = pytest.importorskip("torch")
+    from platedet.eval.baseline import sha256_file
+    from platedet.train.exp import make_exp
+
+    (training_dir / "stats.json").write_text(
+        json.dumps({"input_size": 64, "combined_manifest_sha256": "m", "pseudo_labels_sha256": "p"})
+    )
+    pretrained = tmp_path / "start.pth"
+    if not pretrained.exists():
+        config = {"name": "x", "input_size": 64, "data": {"training_dir": str(training_dir)}}
+        torch.manual_seed(1)
+        torch.save({"model": make_exp(config, tmp_path).get_model().state_dict()}, pretrained)
+    config = {
+        "name": "local_smoke",
+        "seed": 0,
+        "input_size": 64,
+        "channel_order": "bgr",
+        "pretrained": {"url": "unused", "path": str(pretrained), "sha256": sha256_file(pretrained)},
+        "data": {"training_dir": str(training_dir)},
+        "train": {
+            "max_epoch": max_epoch,
+            "no_aug_epochs": 1,
+            "warmup_epochs": 1,
+            "batch_size": 2,
+            "fp16": False,
+            "data_num_workers": 0,
+            "eval_interval": 1,
+            "print_interval": 1,
+            "random_size": [2, 3],
+        },
+    }
+    path = tmp_path / f"config_{max_epoch}.yaml"
+    path.write_text(yaml.safe_dump(config))
+    return path
+
+
+def test_local_trainer_trains_evaluates_and_resumes_on_cpu(synthetic_training_dir, tmp_path):
+    torch = pytest.importorskip("torch")
+    from platedet.train.train import train
+
+    runs = tmp_path / "runs"
+    first = _local_run_config(tmp_path, synthetic_training_dir, max_epoch=1)
+    run_dir = train(first, runs_dir=runs, run_id="r", device="cpu")
+    latest = torch.load(run_dir / "yolox" / "latest_ckpt.pth", weights_only=False)
+    assert latest["start_epoch"] == 1
+    info = json.loads((run_dir / "run_info.json").read_text())
+    assert info["environment"]["device"] == "cpu"
+    assert info["best_checkpoint_sha256"]
+
+    second = _local_run_config(tmp_path, synthetic_training_dir, max_epoch=2)
+    train(second, runs_dir=runs, run_id="r", device="cpu")
+    latest = torch.load(run_dir / "yolox" / "latest_ckpt.pth", weights_only=False)
+    assert latest["start_epoch"] == 2
+    info = json.loads((run_dir / "run_info.json").read_text())
+    assert len(info["resumed_at"]) == 1
+
+
+def test_mps_type_names_only_patched_inside_context():
+    torch = pytest.importorskip("torch")
+    from platedet.train.local_trainer import mps_type_names
+
+    original = torch.Tensor.type
+    with mps_type_names():
+        assert torch.Tensor.type is not original
+        assert torch.zeros(1).type("torch.FloatTensor").dtype == torch.float32
+    assert torch.Tensor.type is original
+
+
+def test_local_trainer_runs_on_apple_gpu(synthetic_training_dir, tmp_path):
+    torch = pytest.importorskip("torch")
+    if not torch.backends.mps.is_available():
+        pytest.skip("no Apple GPU")
+    from platedet.train.train import train
+
+    config = _local_run_config(tmp_path, synthetic_training_dir, max_epoch=1)
+    run_dir = train(config, runs_dir=tmp_path / "runs", run_id="mps", device="mps")
+    info = json.loads((run_dir / "run_info.json").read_text())
+    assert info["environment"]["device"] == "mps" and info["best_checkpoint_sha256"]

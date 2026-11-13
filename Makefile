@@ -24,8 +24,10 @@ pseudo-labels:
 train-data:
 	PYTHONPATH=src uv run --locked python -m platedet.train.dataset --config $(CONFIG)
 
+# Keeps a Mac awake while training (caffeinate); rerun with the same RUN_ID to resume.
+KEEP_AWAKE := $(shell command -v caffeinate >/dev/null 2>&1 && echo caffeinate -i -s)
 train:
-	PYTHONPATH=src uv run --locked python -m platedet.train.train --config $(CONFIG)
+	PYTHONPATH=src $(KEEP_AWAKE) uv run --locked python -m platedet.train.train --config $(CONFIG) $(if $(RUN_ID),--run-id $(RUN_ID))
 
 export:
 	PYTHONPATH=src uv run --locked python -m platedet.export.onnx_export --run-dir runs/$(RUN)

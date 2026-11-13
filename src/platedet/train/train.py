@@ -1,4 +1,7 @@
-"""Train YOLOX-Tiny from a YAML config into `<runs_dir>/<run_id>/` (needs a CUDA GPU).
+"""Train YOLOX-Tiny from a YAML config into `<runs_dir>/<run_id>/`.
+
+Runs on a CUDA GPU with YOLOX's own trainer (Colab), or on an Apple-silicon GPU (MPS) with
+`local_trainer.py` (ADR-0012). `--device cpu` exists for tests only.
 
 Records the git state, config, dataset/label hashes, YOLOX commit and starting checkpoint
 hash in `run_info.json` before training, and the final checkpoint hash afterwards. If the
@@ -9,8 +12,10 @@ can end at any time).
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import logging
+import platform
 import random
 import shutil
 from argparse import Namespace
@@ -23,6 +28,7 @@ import yaml
 from platedet.eval.baseline import _git_state, _prepare_model, sha256_file
 from platedet.train.dataset import training_dir
 from platedet.train.exp import make_exp
+from platedet.train.local_trainer import make_local_trainer, mps_type_names, pick_device
 from platedet.train.yolox_src import YOLOX_COMMIT
 
 LOGGER = logging.getLogger("platedet.train")
@@ -59,7 +65,23 @@ def run_inputs(config: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def train(config_path: Path, *, runs_dir: Path, run_id: str | None = None) -> Path:
+def _environment(torch: Any, device: str) -> dict[str, Any]:
+    environment: dict[str, Any] = {"torch": torch.__version__, "device": device}
+    if device == "cuda":
+        environment |= {"cuda": torch.version.cuda, "gpu": torch.cuda.get_device_name(0)}
+    elif device == "mps":
+        environment["gpu"] = platform.processor() or "apple-silicon"
+        environment["machine"] = platform.platform()
+    return environment
+
+
+def train(
+    config_path: Path,
+    *,
+    runs_dir: Path,
+    run_id: str | None = None,
+    device: str | None = None,
+) -> Path:
     import torch
 
     config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
@@ -67,8 +89,10 @@ def train(config_path: Path, *, runs_dir: Path, run_id: str | None = None) -> Pa
     run_dir = runs_dir / run_id
     latest = run_dir / EXPERIMENT_NAME / "latest_ckpt.pth"
     resume = latest.is_file()
-    if not torch.cuda.is_available():
-        raise RuntimeError("YOLOX's trainer needs a CUDA GPU; run this on Colab (see notebooks/)")
+    if device is None:
+        device = pick_device()
+        if device == "cpu":
+            raise RuntimeError("No CUDA or Apple GPU found (pass --device cpu for tests only)")
 
     pretrained = _prepare_model(config["pretrained"])
     inputs = run_inputs(config)
@@ -78,7 +102,9 @@ def train(config_path: Path, *, runs_dir: Path, run_id: str | None = None) -> Pa
         info = json.loads(info_path.read_text(encoding="utf-8"))
         if info["inputs"] != inputs:
             raise ValueError("Resuming with different data or checkpoint than the run started with")
-        info.setdefault("resumed_at", []).append(datetime.now(UTC).isoformat())
+        info.setdefault("resumed_at", []).append(
+            {"at": datetime.now(UTC).isoformat(), "environment": _environment(torch, device)}
+        )
     else:
         shutil.copy(config_path, run_dir / "config.yaml")
         info = {
@@ -87,11 +113,7 @@ def train(config_path: Path, *, runs_dir: Path, run_id: str | None = None) -> Pa
             "git": _run_git_state(),
             "config": config,
             "inputs": inputs,
-            "environment": {
-                "torch": torch.__version__,
-                "cuda": torch.version.cuda,
-                "gpu": torch.cuda.get_device_name(0),
-            },
+            "environment": _environment(torch, device),
         }
     info_path.write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8")
 
@@ -122,11 +144,15 @@ def train(config_path: Path, *, runs_dir: Path, run_id: str | None = None) -> Pa
         logger="tensorboard",
         opts=[],
     )
-    configure_nccl()
-    configure_omp()
-    torch.backends.cudnn.benchmark = True
-    LOGGER.info("%s run %s", "Resuming" if resume else "Starting", run_dir)
-    Trainer(exp, args).train()
+    LOGGER.info("%s run %s on %s", "Resuming" if resume else "Starting", run_dir, device)
+    if device == "cuda":
+        configure_nccl()
+        configure_omp()
+        torch.backends.cudnn.benchmark = True
+        Trainer(exp, args).train()
+    else:
+        with mps_type_names() if device == "mps" else contextlib.nullcontext():
+            make_local_trainer(exp, args, device).train()
 
     best = run_dir / EXPERIMENT_NAME / "best_ckpt.pth"
     info["finished_at"] = datetime.now(UTC).isoformat()
@@ -141,9 +167,10 @@ def main() -> None:
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--runs-dir", type=Path, default=Path("runs"))
     parser.add_argument("--run-id", default=None, help="fixed ID so a later call resumes")
+    parser.add_argument("--device", choices=("cuda", "mps", "cpu"), default=None)
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    print(train(args.config, runs_dir=args.runs_dir, run_id=args.run_id))
+    print(train(args.config, runs_dir=args.runs_dir, run_id=args.run_id, device=args.device))
 
 
 if __name__ == "__main__":
