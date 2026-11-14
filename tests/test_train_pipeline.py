@@ -63,6 +63,18 @@ def test_convert_split_drops_small_boxes_and_adds_pseudo_labels_to_plate_only_im
     assert "annotated_classes" not in output["images"][0]
 
 
+def test_convert_split_keeps_plates_by_stored_width_when_configured():
+    coco = _coco()
+    coco["annotations"].append({"id": 5, "image_id": 1, "category_id": 1, "bbox": [0, 0, 11, 4]})
+    pseudo = {"images/ccpd/b.jpg": [[50, 50, 450, 350, 0.9]]}
+    output, counts = convert_split(coco, pseudo, 640, min_box_px=6, plate_min_width_px=12)
+    # The 30x8 plate is readable (>= 12 px wide), so it is kept; the 11x4 plate is not.
+    assert counts["kept_license_plate"] == 3
+    assert counts["dropped_small_license_plate"] == 1
+    plates = [a["bbox"] for a in output["annotations"] if a["category_id"] == 1]
+    assert [500, 300, 30, 8] in plates and [0, 0, 11, 4] not in plates
+
+
 def test_convert_split_requires_pseudo_labels_for_plate_only_images():
     with pytest.raises(ValueError, match="No pseudo-labels"):
         convert_split(_coco(), {}, input_size=640, min_box_px=6)

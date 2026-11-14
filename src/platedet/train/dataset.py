@@ -8,6 +8,8 @@ For each input size this produces `data/processed/yolox_<size>/` with:
 Rules (SPEC §4.4, ADR-0011):
   - boxes whose shorter side is under `min_box_px` after letterboxing to the input size are
     dropped from *training* only; evaluation keeps them;
+  - if `plate_min_width_px` is set, plates use that rule instead: keep a plate when it is at
+    least that wide in the stored image (narrower plates are unreadable and ignored, ADR-0013);
   - plate-only images get vehicle pseudo-labels (train/val training files only);
   - the build refuses images with an EXIF orientation tag, because YOLOX loads images with
     OpenCV (which applies it) while our boxes are in stored-pixel coordinates.
@@ -49,12 +51,15 @@ def convert_split(
     pseudo_labels: dict[str, list[list[float]]],
     input_size: int,
     min_box_px: float,
+    plate_min_width_px: float | None = None,
 ) -> tuple[dict[str, Any], Counter[str]]:
     """Return a training COCO dict plus counters (kept/dropped per class, pseudo added)."""
     counts: Counter[str] = Counter()
     images = {image["id"]: image for image in coco["images"]}
 
-    def keep(box: list[float], image: dict[str, Any]) -> bool:
+    def keep(box: list[float], image: dict[str, Any], category_id: int) -> bool:
+        if category_id == 1 and plate_min_width_px is not None:
+            return box[2] >= plate_min_width_px
         scale = input_size / max(image["width"], image["height"])
         return min(box[2], box[3]) * scale >= min_box_px
 
@@ -62,7 +67,7 @@ def convert_split(
 
     def add(image: dict[str, Any], category_id: int, bbox: list[float], pseudo: bool) -> None:
         name = CLASS_NAMES[category_id]
-        if not keep(bbox, image):
+        if not keep(bbox, image, category_id):
             counts[f"dropped_small_{name}"] += 1
             return
         counts[f"kept_{name}"] += 1
@@ -112,6 +117,8 @@ def build_training_data(config: dict[str, Any]) -> dict[str, Any]:
     output = training_dir(config)
     input_size = int(config["input_size"])
     min_box_px = float(config.get("min_box_px", 6))
+    plate_min_width = config.get("plate_min_width_px")
+    plate_min_width_px = None if plate_min_width is None else float(plate_min_width)
     pseudo_path = Path(data["pseudo_labels"])
     pseudo = json.loads(pseudo_path.read_text(encoding="utf-8"))
     manifest_hash = sha256_file(combined / "manifest.csv")
@@ -129,6 +136,7 @@ def build_training_data(config: dict[str, Any]) -> dict[str, Any]:
     stats: dict[str, Any] = {
         "input_size": input_size,
         "min_box_px": min_box_px,
+        "plate_min_width_px": plate_min_width_px,
         "combined_manifest_sha256": manifest_hash,
         "pseudo_labels_sha256": sha256_file(pseudo_path),
         "splits": {},
@@ -137,7 +145,9 @@ def build_training_data(config: dict[str, Any]) -> dict[str, Any]:
         coco = json.loads((combined / "annotations" / f"{split}.json").read_text("utf-8"))
         for image in coco["images"]:
             _check_orientation(combined / image["file_name"])
-        converted, counts = convert_split(coco, pseudo["labels"], input_size, min_box_px)
+        converted, counts = convert_split(
+            coco, pseudo["labels"], input_size, min_box_px, plate_min_width_px
+        )
         path = output / "annotations" / f"{split}.json"
         path.write_text(json.dumps(converted) + "\n", encoding="utf-8")
         stats["splits"][split] = {**dict(sorted(counts.items())), "sha256": sha256_file(path)}

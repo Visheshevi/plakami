@@ -1,6 +1,6 @@
 # Project Progress
 
-## Current step: T3 — Train v0 (training locally on the Apple GPU)
+## Current step: T4 — Iterate: small plates (ADR-0013)
 
 ### T0 — Scaffold
 
@@ -51,13 +51,22 @@ Bounded sample results (`MAX_IMAGES=100`): 83 usable images; 17 image URLs retur
 - [x] Local Apple-GPU training path (ADR-0012): timing test, `local_trainer.py`, batch 16 configs, `make train RUN_ID=` with caffeinate; CPU and MPS tests
 - [x] Train 640 (`runs/yolox_tiny_640_v0`, ~11 h), then 416 (`runs/yolox_tiny_416_v0`, ~8.7 h) on the Mac
 - [x] Export, evaluate and report v0 to the owner (config, metrics against targets, worst misses)
-- [ ] Owner reviews the v0 report and picks the T4 direction (input size, thresholds, label cleaning, vehicle target)
+- [x] Owner reviews the v0 report and picks the T4 direction: keep 640, drop 416, focus on small plates (2026-11-13)
+
+### T4 — Small plates (current, branch `t4-small-plates`)
+
+- [x] Owner approved the plan (2026-11-13): one photo at a time (tiling OK), unreadable plates ignored, run step B
+- [ ] Step B: retrain 640 for small plates (`configs/train/yolox_tiny_640_v1.yaml`, `runs/yolox_tiny_640_v1`)
+- [ ] Step A: tiled detection in `postprocess.py`, evaluation option, readable-size rule in metrics; tune on val
+- [ ] Evaluate v0/v1 with and without tiles; report to the owner
 
 ### Next up
 
-T3 training and evaluation done; waiting for the owner's review of the v0 report (`runs/yolox_tiny_640_v0/eval/report.md`, `runs/yolox_tiny_416_v0/eval/report.md`). Recommendation: keep 640, drop 416; T4 to focus on small plates, a val-tuned plate threshold and label cleaning. Then merge `t3-train-v0` and `t3-local-mps-training` to `main`.
+Step B training runs overnight (`make train CONFIG=configs/train/yolox_tiny_640_v1.yaml RUN_ID=yolox_tiny_640_v1`; rerun to resume). Meanwhile build step A (tiling) and the readable-size rule in evaluation.
 
 ### Open owner decisions
+
+- SPEC §6 readable-size wording (ADR-0013): plates under 12 px wide excluded; small = 12–32 px. Proposed, not applied.
 
 - Repository code licence is deferred; no `LICENSE` file is included.
 - GitHub repository creation and remote setup are deferred.
@@ -119,3 +128,4 @@ T3 training and evaluation done; waiting for the owner's review of the v0 report
 - 2026-11-12: The 640 run crashed at its first evaluation (epoch 10): YOLOX's fast COCO scorer needs a C++ build (ninja). The local trainer now uses pycocotools (same metrics), with a test that scores real detections. The epoch-10 checkpoint was saved before the crash; its val score is AP50 0.809 and AP50:95 0.513 (plate AP 0.561, vehicle 0.465). Resumed from epoch 11.
 - 2026-11-13: 640 run finished (`runs/yolox_tiny_640_v0`, 100 epochs on the Mac GPU, ~11 h, best val AP@0.5:0.95 0.598 at the last epochs; checkpoint SHA-256 ffaa8c75…). ONNX export matches PyTorch (max error 4.5e-6). Test vs SPEC §6: plate recall 0.885 (target 0.95), small plates 0.652 (0.85), vehicles 0.684 (0.90; off-the-shelf baseline 0.693), plate FP/image 0.21 (≤1.0, met); holdout plate recall 0.755, small 0.265. Of 156 missed test plates: 64 not found (48 under 32 px), 51 found below the 0.2 threshold, 41 found with box overlap under 0.5 (many loose Open Images labels). Of vehicle misses, half are found below the 0.3 threshold; many are Open Images full-frame or close-up "vehicle" labels. Val sweep: plate threshold 0.05 gives recall 0.90 at 0.30 FP/image. 416 run started automatically after 640.
 - 2026-11-13: 416 run finished (`runs/yolox_tiny_416_v0`, ~8.7 h, data loading was the bottleneck; best val AP@0.5:0.95 0.608, checkpoint SHA-256 73535a13…; ONNX matches PyTorch, max error 7.3e-6). Test: plate recall 0.747, small plates 0.232, plates ≥32 px ~0.88 (640: ~0.94), vehicles 0.640, plate FP/image 0.11; holdout plate recall 0.698. The val AP during training was higher than 640's because it is scored on the 416 labels, which drop the smallest plates; the full evaluation shows 416 is worse at every plate size. Recommendation to the owner: ship 640, drop 416.
+- 2026-11-13: T4 started on `t4-small-plates` (owner: keep 640, small plates first; one photo at a time; ignore unreadable plates; run step B). T3 merged to `main`. ADR-0013. Training labels `data/processed/yolox_640_v1` keep plates ≥ 12 px wide (117 dropped vs 652 in v0). `make lint` clean, `make test` 75 passed. v1 training started.
