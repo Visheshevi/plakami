@@ -30,6 +30,16 @@ Owner decisions (2026-11-13):
    - multi-scale sizes 544–832 px (v0: 480–800). 896 px would overflow 16 GB memory
      (ADR-0012);
    - mosaic zoom 0.5–2.0 (v0: 0.5–1.5), so training also sees plates at the scale tiles show.
+   **Tile layout chosen on val (v0 model, 2026-11-13): 2×2 with 0.2 overlap.**
+
+   | val | whole image | 2×2 (5 passes) | 3×3 (10 passes) |
+   |---|---|---|---|
+   | plate recall | 0.882 | 0.920 | 0.929 |
+   | small plates (12–32 px) | 0.580 | 0.771 | 0.776 |
+   | vehicle recall | 0.683 | 0.762 | 0.778 |
+   | plate FP/image | 0.14 | 0.35 | 0.47 |
+
+   3×3 doubles the cost for under one point more.
 4. **Step C (800 px input)** only if A and B fall short.
 
 ## Proposed SPEC §6 wording (owner to approve)
