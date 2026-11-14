@@ -143,7 +143,7 @@ def test_target_rows_and_report(tmp_path):
     rows = {row["metric"]: row for row in target_rows(metrics)}
     assert rows["Plate recall @0.2 on test"]["met"] is True
     assert rows["Plate recall @0.2 on holdout"]["met"] is None
-    assert rows["Small-plate recall (<32 px) on test"]["met"] is False
+    assert rows["Small-plate recall (12-32 px) on test"]["met"] is False
     assert rows["Plate false positives per image on test"]["met"] is False
     (tmp_path / "eval").mkdir()
     summary = {

@@ -24,10 +24,22 @@ The model outputs `(1, N, 5 + C)` raw head predictions, with `N = Σ (S / s)²` 
 6. **NMS.** Class-aware greedy NMS with IoU > `nms_iou` (default **0.45**) suppressed, highest score first.
 7. Output class IDs follow `labels.txt`: 1 = `license_plate`, 2 = `vehicle`.
 
+## Tiled detection (`detect_tiled`, optional, ADR-0013)
+
+For one photo at a time, small plates are found better by also running the model on zoomed-in tiles. Each pass uses the pre- and post-processing above unchanged.
+
+1. **Whole image.** Run the model on the whole image.
+2. **Tiles.** Split the image into a `grid × grid` set of tiles with overlap `overlap` (default 0.2). Along each axis, a tile spans `ceil(dim / (grid − (grid − 1) × overlap))` pixels, capped at `dim`. Tile `i` starts at `round(i × (dim − tile) / (grid − 1))`. Tiles are row-major and cropped from the original image.
+3. **Run per tile.** Run the model on each tile. Drop any tile box within **2 px** of a tile edge that is not also an image edge, because the object is cut off. Then shift the remaining boxes by the tile's top-left corner.
+4. **Merge.** Merge the whole-image and tile boxes with the same class-aware greedy NMS (IoU > `nms_iou` suppressed, highest score first).
+
+The cost is `1 + grid²` model passes per photo.
+
 ## Evaluation conventions (`src/platedet/eval/metrics.py`)
 
 - A detection matches a ground-truth box at IoU ≥ 0.5. Matching is greedy by score and one-to-one.
 - Recall is computed at the SPEC §6 thresholds: plates 0.2, vehicles 0.3.
-- Small plates are those whose ground truth is under 32 px wide in original pixels.
+- **Unreadable plates are ignored (ADR-0013).** These are plates under **12 px** wide in the evaluated image. They don't count as misses, and a detection matching one (IoU ≥ 0.5) is not a false positive. Reports also show the targets with every plate counted.
+- Small plates are those whose ground truth is 12–32 px wide in original pixels. With the ignore rule off, this means under 32 px.
 - A class is scored only on images where it is annotated (`annotated_classes`). Plate-only sources (CCPD, Kaggle) don't count vehicle misses or vehicle false positives.
 - AP@0.5 is the all-point interpolated area under the precision/recall curve, using detections down to `collect_conf` (0.01).

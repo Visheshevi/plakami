@@ -1,8 +1,11 @@
 """Evaluate a trained run's ONNX model on val, test and holdout (`make eval RUN=<run_id>`).
 
-Fixed SPEC §6 thresholds, nothing tuned. Writes `runs/<run_id>/eval/` with summary.json,
-predictions, miss galleries and report.md (metrics against the v1.0 targets and the worst
-misses with image paths).
+Fixed SPEC §6 thresholds, nothing tuned. Writes `runs/<run_id>/eval/` (or `eval_tiles<N>/`
+with `--tiles N`) with summary.json, predictions, miss galleries and report.md (metrics
+against the v1.0 targets and the worst misses with image paths).
+
+Unreadable plates (under 12 px wide) are ignored (ADR-0013); the report also shows the
+targets with every plate counted, as SPEC §6 is currently written.
 """
 
 from __future__ import annotations
@@ -16,7 +19,15 @@ from typing import Any
 
 import yaml
 
-from platedet.eval.baseline import OnnxYoloxPredictor, _git_state, evaluate, sha256_file
+from platedet.eval.baseline import (
+    OnnxYoloxPredictor,
+    TiledPredictor,
+    _git_state,
+    evaluate,
+    sha256_file,
+)
+from platedet.eval.metrics import READABLE_PLATE_WIDTH
+from platedet.postprocess import DEFAULT_TILE_OVERLAP
 
 LOGGER = logging.getLogger("platedet.eval")
 DEFAULT_DATASET_DIR = Path("data/processed/combined")
@@ -27,7 +38,7 @@ TARGETS = (
     ("Plate recall @0.2 on test", "test", "license_plate", ("recall",), ">=", 0.95),
     ("Plate recall @0.2 on holdout", "holdout", "license_plate", ("recall",), ">=", 0.95),
     (
-        "Small-plate recall (<32 px) on test",
+        "Small-plate recall (12-32 px) on test",
         "test",
         "license_plate",
         ("small_plates", "recall"),
@@ -61,13 +72,33 @@ def target_rows(metrics: dict[str, Any]) -> list[dict[str, Any]]:
     return rows
 
 
-def write_report(run_dir: Path, summary: dict[str, Any]) -> Path:
-    lines = [f"# Evaluation: {summary['run_id']}", "", "## Targets (SPEC §6)", ""]
-    lines += ["| Metric | Value | Target | Met |", "|---|---|---|---|"]
-    for row in summary["targets"]:
-        value = "n/a" if row["value"] is None else f"{row['value']:.3f}"
+def _fmt(value: Any) -> str:
+    return "n/a" if value is None else f"{value:.3f}"
+
+
+def write_report(run_dir: Path, summary: dict[str, Any], out_dir: Path | None = None) -> Path:
+    out_dir = out_dir or run_dir / "eval"
+    lines = [f"# Evaluation: {summary['run_id']}", ""]
+    if summary.get("tiles"):
+        lines += [f"Tiled detection: {summary['tiles']} (ADR-0013).", ""]
+    lines += ["## Targets (SPEC §6)", ""]
+    all_rows = summary.get("targets_all_plates")
+    if all_rows:
+        lines += [
+            f"Plates under {summary['min_plate_width']:g} px wide are ignored (ADR-0013). "
+            "The last column counts every plate, as SPEC §6 is currently written.",
+            "",
+            "| Metric | Value | Target | Met | All plates |",
+            "|---|---|---|---|---|",
+        ]
+    else:
+        lines += ["| Metric | Value | Target | Met |", "|---|---|---|---|"]
+    for index, row in enumerate(summary["targets"]):
         met = {True: "yes", False: "**no**", None: "n/a"}[row["met"]]
-        lines.append(f"| {row['metric']} | {value} | {row['target']} | {met} |")
+        line = f"| {row['metric']} | {_fmt(row['value'])} | {row['target']} | {met} |"
+        if all_rows:
+            line += f" {_fmt(all_rows[index]['value'])} |"
+        lines.append(line)
     lines += [
         "",
         "## All metrics",
@@ -88,7 +119,7 @@ def write_report(run_dir: Path, summary: dict[str, Any]) -> Path:
             small = entry.get("small_plates")
             if small and small["recall"] is not None:
                 lines.append(
-                    f"| {split} | plate < 32 px | {small['recall']:.3f} | "
+                    f"| {split} | small plate | {small['recall']:.3f} | "
                     f"{small['ground_truth']} | {small['missed']} | | |"
                 )
     lines += ["", "## Worst misses (largest boxes first)", ""]
@@ -104,7 +135,7 @@ def write_report(run_dir: Path, summary: dict[str, Any]) -> Path:
                     f"({miss['width_px']} px wide)"
                 )
             lines.append("")
-    path = run_dir / "eval" / "report.md"
+    path = out_dir / "report.md"
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path
 
@@ -116,6 +147,8 @@ def evaluate_run(
     dataset_dir: Path = DEFAULT_DATASET_DIR,
     holdout_dir: Path = DEFAULT_HOLDOUT_DIR,
     predictor: Any = None,
+    tiles: int = 1,
+    overlap: float = DEFAULT_TILE_OVERLAP,
 ) -> dict[str, Any]:
     run_config = yaml.safe_load((run_dir / "config.yaml").read_text(encoding="utf-8"))
     model_path = run_dir / "model.onnx"
@@ -128,23 +161,29 @@ def evaluate_run(
         "plate_conf": 0.2,
         "vehicle_conf": 0.3,
         "gallery_size": 30,
+        "min_plate_width": READABLE_PLATE_WIDTH,
     }
+    nms_iou = float(run_config.get("nms_iou", 0.45))
     if predictor is None:
         predictor = OnnxYoloxPredictor(
             model_path,
             input_size=int(run_config["input_size"]),
             channel_order=str(run_config.get("channel_order", "bgr")),
             conf_threshold=0.01,
-            nms_iou=float(run_config.get("nms_iou", 0.45)),
+            nms_iou=nms_iou,
             class_map=None,
         )
-    out_dir = run_dir / "eval"
+    if tiles > 1:
+        predictor = TiledPredictor(predictor, grid=tiles, overlap=overlap, nms_iou=nms_iou)
+    out_dir = run_dir / ("eval" if tiles == 1 else f"eval_tiles{tiles}")
     out_dir.mkdir(parents=True, exist_ok=True)
     results = evaluate(config, predictor, out_dir)
     summary = {
         "run_id": run_dir.name,
         "evaluated_at": datetime.now(UTC).isoformat(),
         "git": _git_state(),
+        "tiles": None if tiles == 1 else {"grid": tiles, "overlap": overlap},
+        "min_plate_width": READABLE_PLATE_WIDTH,
         "model_sha256": sha256_file(model_path) if model_path.is_file() else None,
         "manifest_sha256": {
             str(dataset_dir): sha256_file(dataset_dir / "manifest.csv"),
@@ -157,8 +196,10 @@ def evaluate_run(
         **results,
     }
     summary["targets"] = target_rows(summary["metrics"])
+    if "metrics_all_plates" in summary:
+        summary["targets_all_plates"] = target_rows(summary["metrics_all_plates"])
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
-    write_report(run_dir, summary)
+    write_report(run_dir, summary, out_dir)
     return summary
 
 
@@ -166,10 +207,19 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run", required=True, help="run ID under runs/")
     parser.add_argument("--runs-dir", type=Path, default=Path("runs"))
+    parser.add_argument("--tiles", type=int, default=1, help="N for whole image + N x N tiles")
+    parser.add_argument("--overlap", type=float, default=DEFAULT_TILE_OVERLAP)
+    parser.add_argument("--splits", default="val,test,holdout")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    evaluate_run(args.runs_dir / args.run)
-    print(args.runs_dir / args.run / "eval" / "report.md")
+    run_dir = args.runs_dir / args.run
+    evaluate_run(
+        run_dir,
+        splits=tuple(args.splits.split(",")),
+        tiles=args.tiles,
+        overlap=args.overlap,
+    )
+    print(run_dir / ("eval" if args.tiles == 1 else f"eval_tiles{args.tiles}") / "report.md")
 
 
 if __name__ == "__main__":

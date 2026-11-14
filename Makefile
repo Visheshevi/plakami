@@ -33,7 +33,7 @@ export:
 	PYTHONPATH=src uv run --locked python -m platedet.export.onnx_export --run-dir runs/$(RUN)
 
 eval:
-	PYTHONPATH=src uv run --locked python -m platedet.eval.evaluate_run --run $(RUN)
+	PYTHONPATH=src uv run --locked python -m platedet.eval.evaluate_run --run $(RUN) $(if $(TILES),--tiles $(TILES)) $(if $(SPLITS),--splits $(SPLITS))
 
 colab-bundle:
 	PYTHONPATH=src uv run --locked python -m platedet.train.colab_bundle

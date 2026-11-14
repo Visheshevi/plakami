@@ -17,11 +17,18 @@ Post-processing:
   - score = objectness x best class probability,
   - optional class remapping (e.g. COCO car/truck/bus -> vehicle) before NMS,
   - class-aware NMS, then boxes scaled back to original image pixels and clipped.
+
+Tiled detection (`detect_tiled`, ADR-0013), for one photo at a time:
+  - run the model on the whole image and on a `grid` x `grid` set of overlapping tiles,
+  - drop tile boxes that touch an inner tile edge (cut-off objects; the whole-image pass
+    or a neighbouring tile sees them whole),
+  - shift tile boxes back to image pixels and merge everything with class-aware NMS.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, replace
 
 import numpy as np
 from PIL import Image
@@ -31,6 +38,8 @@ STRIDES = (8, 16, 32)
 DEFAULT_NMS_IOU = 0.45
 CHANNEL_ORDERS = ("rgb", "bgr")
 DEFAULT_CHANNEL_ORDER = "bgr"
+DEFAULT_TILE_OVERLAP = 0.2
+TILE_EDGE_MARGIN = 2.0
 
 
 @dataclass(frozen=True)
@@ -202,3 +211,65 @@ def postprocess(
                 Detection(*map(float, boxes[index]), float(scores[index]), int(class_id))
             )
     return sorted(detections, key=lambda detection: -detection.score)
+
+
+def tile_windows(
+    width: int, height: int, grid: int, overlap: float = DEFAULT_TILE_OVERLAP
+) -> list[tuple[int, int, int, int]]:
+    """`grid` x `grid` overlapping windows (x1, y1, x2, y2) covering the image, row-major.
+
+    Each tile spans `dim / (grid - (grid - 1) * overlap)` pixels (rounded up) and tiles are
+    spread evenly so the first starts at 0 and the last ends at the image edge.
+    """
+    if grid < 1 or not 0 <= overlap < 1:
+        raise ValueError("grid must be >= 1 and overlap in [0, 1)")
+
+    def spans(dim: int) -> list[tuple[int, int]]:
+        if grid == 1:
+            return [(0, dim)]
+        tile = min(dim, int(np.ceil(dim / (grid - (grid - 1) * overlap))))
+        starts = [round(i * (dim - tile) / (grid - 1)) for i in range(grid)]
+        return [(start, start + tile) for start in starts]
+
+    return [(x1, y1, x2, y2) for y1, y2 in spans(height) for x1, x2 in spans(width)]
+
+
+def merge_detections(detections: list[Detection], nms_iou: float) -> list[Detection]:
+    """Class-aware NMS over detections from several passes, highest score first."""
+    merged: list[Detection] = []
+    for class_id in sorted({d.class_id for d in detections}):
+        group = [d for d in detections if d.class_id == class_id]
+        boxes = np.array([[d.x1, d.y1, d.x2, d.y2] for d in group], dtype=np.float64)
+        scores = np.array([d.score for d in group], dtype=np.float64)
+        merged.extend(group[index] for index in nms(boxes, scores, nms_iou))
+    return sorted(merged, key=lambda detection: -detection.score)
+
+
+def detect_tiled(
+    image: Image.Image,
+    detect: Callable[[Image.Image], list[Detection]],
+    *,
+    grid: int,
+    overlap: float = DEFAULT_TILE_OVERLAP,
+    nms_iou: float = DEFAULT_NMS_IOU,
+    edge_margin: float = TILE_EDGE_MARGIN,
+) -> list[Detection]:
+    """Whole-image detections plus `grid` x `grid` tiles, merged (see module docstring).
+
+    `detect` runs the model on one image (letterbox + model + `postprocess`).
+    """
+    detections = list(detect(image))
+    if grid > 1:
+        for x1, y1, x2, y2 in tile_windows(image.width, image.height, grid, overlap):
+            for d in detect(image.crop((x1, y1, x2, y2))):
+                cut = (
+                    (x1 > 0 and d.x1 <= edge_margin)
+                    or (y1 > 0 and d.y1 <= edge_margin)
+                    or (x2 < image.width and d.x2 >= x2 - x1 - edge_margin)
+                    or (y2 < image.height and d.y2 >= y2 - y1 - edge_margin)
+                )
+                if not cut:
+                    detections.append(
+                        replace(d, x1=d.x1 + x1, y1=d.y1 + y1, x2=d.x2 + x1, y2=d.y2 + y1)
+                    )
+    return merge_detections(detections, nms_iou)
