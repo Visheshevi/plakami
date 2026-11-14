@@ -49,12 +49,13 @@ Bounded sample results (`MAX_IMAGES=100`): 83 usable images; 17 image URLs retur
 - [x] Training data at 640 and 416 (`make train-data`): boxes under 6 px dropped from training only (640: 652 plates and 270 vehicles in train; 416: 1,886 and 720)
 - [x] `make train` (CUDA, resumable, run record), `make export` (ONNX + PyTorch check), `make eval` (val/test/holdout report against SPEC §6), `make colab-bundle`, `notebooks/colab_train.ipynb`
 - [x] Local Apple-GPU training path (ADR-0012): timing test, `local_trainer.py`, batch 16 configs, `make train RUN_ID=` with caffeinate; CPU and MPS tests
-- [ ] Train 640 (`runs/yolox_tiny_640_v0`, ~12 h), then 416 (`runs/yolox_tiny_416_v0`, ~5 h) on the Mac
-- [ ] Export, evaluate and report v0 to the owner (config, metrics against targets, worst misses)
+- [x] Train 640 (`runs/yolox_tiny_640_v0`, ~11 h), then 416 (`runs/yolox_tiny_416_v0`, ~8.7 h) on the Mac
+- [x] Export, evaluate and report v0 to the owner (config, metrics against targets, worst misses)
+- [ ] Owner reviews the v0 report and picks the T4 direction (input size, thresholds, label cleaning, vehicle target)
 
 ### Next up
 
-640 run in progress locally: `make train CONFIG=configs/train/yolox_tiny_640_v0.yaml RUN_ID=yolox_tiny_640_v0` (rerun the same command to resume). Then the 416 run, then `make export RUN=…` and `make eval RUN=…` for both. The Colab bundle is stale (built before ADR-0012); rebuild only if falling back to Colab.
+T3 training and evaluation done; waiting for the owner's review of the v0 report (`runs/yolox_tiny_640_v0/eval/report.md`, `runs/yolox_tiny_416_v0/eval/report.md`). Recommendation: keep 640, drop 416; T4 to focus on small plates, a val-tuned plate threshold and label cleaning. Then merge `t3-train-v0` and `t3-local-mps-training` to `main`.
 
 ### Open owner decisions
 
@@ -116,3 +117,5 @@ Bounded sample results (`MAX_IMAGES=100`): 83 usable images; 17 image URLs retur
 - 2026-11-12: Owner chose local training over Colab. Timing test on the M2 Pro (200 steps, real 640 pipeline): batch 16 fp32 0.66 s/step, about 11 h per 100 epochs; fp16 no faster; batch 32 hits memory pressure (31–54 h). Added `local_trainer.py` (ADR-0012), batch 16 / fp32 / 6 workers in the v0 configs, `make train RUN_ID=` with caffeinate. YOLOX's FLOPs logger (`thop`) needs distutils, which Python 3.12 lacks, so the local trainer logs the parameter count instead. Tests: CPU train, eval and resume, plus a 1-epoch MPS run.
 - 2026-11-12: First local 640 run stalled at epoch 1, iteration 200: the MPS cache grew with each multi-scale size until macOS swapped (14 GB). Fixed by releasing the MPS cache at each size change (ADR-0012), then restarted. Memory now follows the input size (4.4–8.6 GB); ETA about 10.5 h.
 - 2026-11-12: The 640 run crashed at its first evaluation (epoch 10): YOLOX's fast COCO scorer needs a C++ build (ninja). The local trainer now uses pycocotools (same metrics), with a test that scores real detections. The epoch-10 checkpoint was saved before the crash; its val score is AP50 0.809 and AP50:95 0.513 (plate AP 0.561, vehicle 0.465). Resumed from epoch 11.
+- 2026-11-13: 640 run finished (`runs/yolox_tiny_640_v0`, 100 epochs on the Mac GPU, ~11 h, best val AP@0.5:0.95 0.598 at the last epochs; checkpoint SHA-256 ffaa8c75…). ONNX export matches PyTorch (max error 4.5e-6). Test vs SPEC §6: plate recall 0.885 (target 0.95), small plates 0.652 (0.85), vehicles 0.684 (0.90; off-the-shelf baseline 0.693), plate FP/image 0.21 (≤1.0, met); holdout plate recall 0.755, small 0.265. Of 156 missed test plates: 64 not found (48 under 32 px), 51 found below the 0.2 threshold, 41 found with box overlap under 0.5 (many loose Open Images labels). Of vehicle misses, half are found below the 0.3 threshold; many are Open Images full-frame or close-up "vehicle" labels. Val sweep: plate threshold 0.05 gives recall 0.90 at 0.30 FP/image. 416 run started automatically after 640.
+- 2026-11-13: 416 run finished (`runs/yolox_tiny_416_v0`, ~8.7 h, data loading was the bottleneck; best val AP@0.5:0.95 0.608, checkpoint SHA-256 73535a13…; ONNX matches PyTorch, max error 7.3e-6). Test: plate recall 0.747, small plates 0.232, plates ≥32 px ~0.88 (640: ~0.94), vehicles 0.640, plate FP/image 0.11; holdout plate recall 0.698. The val AP during training was higher than 640's because it is scored on the 416 labels, which drop the smallest plates; the full evaluation shows 416 is worse at every plate size. Recommendation to the owner: ship 640, drop 416.
