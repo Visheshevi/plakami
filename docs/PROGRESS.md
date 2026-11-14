@@ -56,13 +56,14 @@ Bounded sample results (`MAX_IMAGES=100`): 83 usable images; 17 image URLs retur
 ### T4 — Small plates (current, branch `t4-small-plates`)
 
 - [x] Owner approved the plan (2026-11-13): one photo at a time (tiling OK), unreadable plates ignored, run step B
-- [ ] Step B: retrain 640 for small plates (`configs/train/yolox_tiny_640_v1.yaml`, `runs/yolox_tiny_640_v1`)
-- [ ] Step A: tiled detection in `postprocess.py`, evaluation option, readable-size rule in metrics; tune on val
-- [ ] Evaluate v0/v1 with and without tiles; report to the owner
+- [x] Step B: retrain 640 for small plates (`configs/train/yolox_tiny_640_v1.yaml`, `runs/yolox_tiny_640_v1`)
+- [x] Step A: tiled detection in `postprocess.py`, evaluation option, readable-size rule in metrics; tune on val
+- [x] Evaluate v0/v1 with and without tiles; report to the owner
+- [ ] Owner picks the next T4 step (label audit, threshold, step C)
 
 ### Next up
 
-Step B training runs overnight (`make train CONFIG=configs/train/yolox_tiny_640_v1.yaml RUN_ID=yolox_tiny_640_v1`; rerun to resume). Meanwhile build step A (tiling) and the readable-size rule in evaluation.
+Waiting for the owner: best so far is v1 + 2×2 tiles (`runs/yolox_tiny_640_v1/eval_tiles2/report.md`). Proposed next step: an unbiased audit of test/holdout plate labels.
 
 ### Open owner decisions
 
@@ -130,3 +131,4 @@ Step B training runs overnight (`make train CONFIG=configs/train/yolox_tiny_640_
 - 2026-11-13: 416 run finished (`runs/yolox_tiny_416_v0`, ~8.7 h, data loading was the bottleneck; best val AP@0.5:0.95 0.608, checkpoint SHA-256 73535a13…; ONNX matches PyTorch, max error 7.3e-6). Test: plate recall 0.747, small plates 0.232, plates ≥32 px ~0.88 (640: ~0.94), vehicles 0.640, plate FP/image 0.11; holdout plate recall 0.698. The val AP during training was higher than 640's because it is scored on the 416 labels, which drop the smallest plates; the full evaluation shows 416 is worse at every plate size. Recommendation to the owner: ship 640, drop 416.
 - 2026-11-13: T4 started on `t4-small-plates` (owner: keep 640, small plates first; one photo at a time; ignore unreadable plates; run step B). T3 merged to `main`. ADR-0013. Training labels `data/processed/yolox_640_v1` keep plates ≥ 12 px wide (117 dropped vs 652 in v0). `make lint` clean, `make test` 75 passed. v1 training started.
 - 2026-11-13: Step A built on `t4-small-plates`: `detect_tiled` in `postprocess.py`, ignore rule for plates under 12 px in metrics, `make eval TILES=N SPLITS=…`; `make test` 80 passed. Val, v0 model: plate recall 0.882 → 0.920 with 2×2 tiles (3×3: 0.929), small plates 0.580 → 0.771 (0.776), plate FP/image 0.14 → 0.35. Chose 2×2 (ADR-0013). The v0 `eval/` report now holds val only; test/holdout are rerun in the final comparison. v1 training at epoch 3, ETA ~13:00 on 2026-11-14.
+- 2026-11-14: v1 finished (~13 h, checkpoint 48086beb…, ONNX matches PyTorch). Test (readable plates, ADR-0013): v0 0.892 / small 0.674; v0+2×2 tiles 0.926 / 0.822; v1 0.891 / 0.682; v1+tiles 0.933 / 0.841 (targets 0.95 / 0.85), plate FP/image 0.43, vehicles 0.741. Holdout v1+tiles 0.886, small 0.567. Val agrees (v1+tiles best: 0.933 / 0.796). Of 90 remaining test plate misses, 57 have a confident box with IoU 0.1–0.5 (gallery: mostly loose or offset labels), 18 are below 0.2, 15 not found. A first evaluation chain failed on a shell word-splitting bug (my script); rerun fine.
