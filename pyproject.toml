@@ -18,6 +18,23 @@ dev = [
     "pytest>=8.3,<9",
     "ruff>=0.11,<1",
 ]
+# Training/export only (YOLOX imports these). Licences checked 2026-11-12; none GPL/AGPL.
+train = [
+    "loguru>=0.7,<1", # MIT: YOLOX logging.
+    "onnx>=1.16,<2", # Apache-2.0: export trained models to ONNX.
+    "opencv-python-headless>=4.10,<5", # Apache-2.0 (bundled FFmpeg is LGPL): YOLOX image loading.
+    "psutil>=6,<8", # BSD-3-Clause: YOLOX memory checks.
+    "pycocotools>=2.0.8,<3", # BSD-2-Clause: YOLOX dataset loader and COCO AP during training.
+    "tabulate>=0.9,<1", # MIT: YOLOX evaluation tables.
+    "tensorboard>=2.17,<3", # Apache-2.0: training curves (SPEC §3).
+    "thop==0.1.1.post2209072238", # MIT (Lyken17, not ultralytics-thop): YOLOX imports it for FLOPs.
+    "torch>=2.4,<3", # BSD-3-Clause and permissive: training framework.
+    "torchvision>=0.19,<1", # BSD-3-Clause: YOLOX uses its NMS ops.
+    "tqdm>=4.66,<5", # MPL-2.0 AND MIT: YOLOX progress bars.
+]
+
+[tool.uv]
+default-groups = ["dev", "train"]
 
 [build-system]
 requires = ["hatchling>=1.26,<2"]

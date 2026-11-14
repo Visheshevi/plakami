@@ -29,3 +29,5 @@ events.out.tfevents.*
 .DS_Store
 .idea/
 .vscode/
+# Pinned third-party source (YOLOX) fetched by make setup
+/.cache/

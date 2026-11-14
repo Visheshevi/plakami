@@ -1,0 +1,29 @@
+# T3 v0: YOLOX-Tiny at 416px from the official COCO checkpoint (ADR-0009..0011).
+# Runs locally on an Apple-silicon GPU (make train, ADR-0012); Colab notebook is the fallback.
+name: yolox_tiny_416_v0
+seed: 42
+input_size: 416
+channel_order: bgr          # YOLOX trains on OpenCV (BGR) images (ADR-0010)
+nms_iou: 0.45
+min_box_px: 6               # drop training boxes whose short side is < 6 px at this size
+pretrained:
+  url: https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_tiny.pth
+  path: data/models/yolox_tiny.pth
+  sha256: 9de513de589ac98bb92d3bca53b5af7b9acfa9b0bacb831f7999d0f7afaee8f0
+  licence: Apache-2.0
+data:
+  combined_dir: data/processed/combined
+  pseudo_labels: data/processed/pseudo_labels/yolox_l_vehicles.json
+  training_dir: data/processed/yolox_416
+train:
+  max_epoch: 100            # official 300 is too long for free Colab; revisit in T4
+  no_aug_epochs: 15
+  warmup_epochs: 5
+  batch_size: 16            # 32 overflows 16 GB unified memory on the M2 Pro (ADR-0012)
+  fp16: false               # no speed-up on Apple GPU; CUDA-only in our trainer
+  basic_lr_per_img: 0.00015625   # 0.01 / 64, YOLOX default
+  data_num_workers: 6       # M2 Pro has 10 CPU cores; use 2 on free Colab
+  eval_interval: 10
+  print_interval: 50
+  mosaic_scale: [0.5, 1.5]
+  random_size: [10, 20]      # official YOLOX-Tiny multi-scale range (320-640)

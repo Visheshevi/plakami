@@ -190,8 +190,8 @@ def evaluate(
     run_dir: Path,
 ) -> dict[str, Any]:
     """Run `predictor` on each configured split and write predictions, metrics and galleries."""
-    class_map = {int(k): int(v) for k, v in config["model"]["class_map"].items()}
-    model_classes = frozenset(class_map.values())
+    class_map = {int(k): int(v) for k, v in (config["model"].get("class_map") or {}).items()}
+    model_classes = frozenset(class_map.values()) if class_map else frozenset(CLASS_NAMES)
     metrics: dict[str, Any] = {}
     worst_misses: dict[str, Any] = {}
     for split in config["splits"]:

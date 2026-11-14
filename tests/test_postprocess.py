@@ -28,7 +28,7 @@ def _set(raw, index, *, stride, cell_x, cell_y, w, h, obj, cls):
 
 
 def test_letterbox_keeps_ratio_and_pads_bottom_right():
-    tensor, ratio = letterbox(Image.new("RGB", (200, 100), (255, 0, 0)), SIZE)
+    tensor, ratio = letterbox(Image.new("RGB", (200, 100), (255, 0, 0)), SIZE, "rgb")
     assert tensor.shape == (1, 3, SIZE, SIZE) and tensor.dtype == np.float32
     assert ratio == pytest.approx(0.32)
     assert (tensor[0, 0, :32, :] == 255).all()
@@ -36,7 +36,7 @@ def test_letterbox_keeps_ratio_and_pads_bottom_right():
 
 
 def test_letterbox_bgr_reverses_channels():
-    rgb, _ = letterbox(Image.new("RGB", (8, 8), (255, 0, 0)), 8)
+    rgb, _ = letterbox(Image.new("RGB", (8, 8), (255, 0, 0)), 8, "rgb")
     bgr, _ = letterbox(Image.new("RGB", (8, 8), (255, 0, 0)), 8, "bgr")
     assert rgb[0, 0, 0, 0] == 255 and bgr[0, 2, 0, 0] == 255 and bgr[0, 0, 0, 0] == 0
     with pytest.raises(ValueError):
@@ -107,3 +107,30 @@ def test_postprocess_clips_to_image_and_handles_empty():
         )
         == []
     )
+
+
+def test_letterbox_matches_yolox_val_transform_on_opencv_image(tmp_path):
+    cv2 = pytest.importorskip("cv2")
+    rng = np.random.default_rng(0)
+    # Smooth-ish content so JPEG round trips don't dominate; saved as PNG to stay lossless.
+    base = rng.integers(0, 256, (37, 53, 3), dtype=np.uint8)
+    pixels = cv2.resize(base, (701, 463), interpolation=cv2.INTER_CUBIC)
+    path = tmp_path / "x.png"
+    cv2.imwrite(str(path), pixels)  # stored as BGR -> RGB on disk
+
+    bgr = cv2.imread(str(path))
+    size = 416
+    r = min(size / bgr.shape[0], size / bgr.shape[1])
+    resized = cv2.resize(
+        bgr, (int(bgr.shape[1] * r), int(bgr.shape[0] * r)), interpolation=cv2.INTER_LINEAR
+    )
+    expected = np.full((size, size, 3), 114, dtype=np.uint8)
+    expected[: resized.shape[0], : resized.shape[1]] = resized
+    expected = expected.transpose(2, 0, 1).astype(np.float32)
+
+    ours, ratio = letterbox(Image.open(path), size, "bgr")
+    assert ratio == pytest.approx(r)
+    difference = np.abs(ours[0] - expected)
+    # Contract: within 1 grey level of OpenCV (its fixed-point rounding differs slightly).
+    assert difference.max() <= 1
+    assert (difference > 0).mean() < 0.3

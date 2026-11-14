@@ -40,9 +40,12 @@ make data       # download allowlisted sources, build COCO dataset + manifest, l
 make holdout-prepare   # download holdout candidates + review sheets (ADR-0008)
 make holdout-finalize  # build the holdout from configs/holdout/review.csv
 make baseline CONFIG=configs/baseline/<name>.yaml  # evaluate an off-the-shelf ONNX model on val/test
-make train CONFIG=configs/<name>.yaml   # train a run into runs/<run_id>/
+make pseudo-labels     # vehicle pseudo-labels for plate-only images (ADR-0011)
+make train-data CONFIG=configs/train/<name>.yaml  # YOLOX training labels at that size
+make colab-bundle      # tar for Colab training (code, YOLOX, checkpoint, data); needs a clean commit
+make train CONFIG=configs/<name>.yaml RUN_ID=<id>   # train into runs/<id>/; Apple GPU locally (ADR-0012) or CUDA; rerun to resume
 make eval RUN=<run_id>                  # metrics + error gallery on val/test/holdout
-make export RUN=<run_id>                # ONNX + TFLite FP16/INT8
+make export RUN=<run_id>                # ONNX now (checked against PyTorch); TFLite FP16/INT8 in T5
 make parity RUN=<run_id>                # ONNX vs TFLite parity + speed + size
 make test       # pytest (unit + smoke train/export on tests/data/smoke)
 make lint       # ruff check + ruff format --check

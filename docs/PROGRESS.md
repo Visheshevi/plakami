@@ -1,6 +1,6 @@
 # Project Progress
 
-## Current step: T2 — Baseline (done; awaiting owner review)
+## Current step: T3 — Train v0 (training locally on the Apple GPU)
 
 ### T0 — Scaffold
 
@@ -40,9 +40,22 @@ Bounded sample results (`MAX_IMAGES=100`): 83 usable images; 17 image URLs retur
 - [x] YOLOX-Tiny COCO vehicle baseline on val/test, results in `docs/baseline.md`
 - [x] Curated `holdout` set (ADR-0008): 244 Open Images test-split images, 364 plates, every image reviewed; `make holdout-prepare` / `make holdout-finalize`; evaluation runner scores it via `holdout_dir`
 
+### T3 — Train v0 (current)
+
+- [x] Owner approved the T3 plan (2026-11-12): vehicle pseudo-labels from YOLOX-L (ADR-0011), BGR input (ADR-0010), training on free Colab via a bundle and notebook, YOLOX default augmentation for v0
+- [x] Pinned YOLOX source and `train` dependency group (ADR-0009); licences checked
+- [x] Preprocessing now matches YOLOX/OpenCV within 1 grey level (ADR-0010); baseline rerun
+- [x] Vehicle pseudo-labels: 3,805 plate-only train/val images, 4,526 boxes at score ≥ 0.5 (845 images got none, mostly CCPD close-ups)
+- [x] Training data at 640 and 416 (`make train-data`): boxes under 6 px dropped from training only (640: 652 plates and 270 vehicles in train; 416: 1,886 and 720)
+- [x] `make train` (CUDA, resumable, run record), `make export` (ONNX + PyTorch check), `make eval` (val/test/holdout report against SPEC §6), `make colab-bundle`, `notebooks/colab_train.ipynb`
+- [x] Local Apple-GPU training path (ADR-0012): timing test, `local_trainer.py`, batch 16 configs, `make train RUN_ID=` with caffeinate; CPU and MPS tests
+- [x] Train 640 (`runs/yolox_tiny_640_v0`, ~11 h), then 416 (`runs/yolox_tiny_416_v0`, ~8.7 h) on the Mac
+- [x] Export, evaluate and report v0 to the owner (config, metrics against targets, worst misses)
+- [ ] Owner reviews the v0 report and picks the T4 direction (input size, thresholds, label cleaning, vehicle target)
+
 ### Next up
 
-Owner review of `docs/baseline.md` and the holdout (ADR-0008). Then the T3 plan (training setup on free Colab, 640 + 416, channel order). CCPD2019 is still quota-blocked.
+T3 training and evaluation done; waiting for the owner's review of the v0 report (`runs/yolox_tiny_640_v0/eval/report.md`, `runs/yolox_tiny_416_v0/eval/report.md`). Recommendation: keep 640, drop 416; T4 to focus on small plates, a val-tuned plate threshold and label cleaning. Then merge `t3-train-v0` and `t3-local-mps-training` to `main`.
 
 ### Open owner decisions
 
@@ -50,8 +63,11 @@ Owner review of `docs/baseline.md` and the holdout (ADR-0008). Then the T3 plan 
 - GitHub repository creation and remote setup are deferred.
 - Local Git is not initialized; no task branch or commit exists.
 - Proposed data and evaluation targets in SPEC §§4–6 remain unconfirmed.
+- 2026-11-12: Owner wants a configurable redaction (blur) tool after T3, for use across several apps. Settings are passed per call and per class (style blur/pixelate/solid, strength, colour with alpha, padding, corner shape and edge softness, per-class confidence, which classes). Deliverables: Python reference in the release, plus a documented settings spec with test vectors so Kotlin/Swift apps can match it. Plan to be written after T3 results.
+- 2026-11-12: Owner wants face blurring added after T3 (a third class from Open Images "Human face" labels; plan to be written before T4). Phone-number blurring is a possible later version (needs text detection plus OCR).
+- 2026-11-12: Proposed SPEC §5 wording change for BGR input and OpenCV-style resize (ADR-0010), awaiting the owner.
 - 2026-11-12: Proposed SPEC §6 wording change for the dropped plate baseline (ADR-0007), awaiting the owner. Channel order for our own models (SPEC §5 says RGB; the official YOLOX trainer reads BGR) is to be fixed in the T3 plan.
-- Google Colab free tier is approved for the eventual T3 training run; no compute has been started or paid for.
+- Google Colab free tier is approved for T3 but no longer needed: owner chose local Apple-GPU training (2026-11-12, ADR-0012). No compute has been started or paid for.
 - Confirmed T1 split ratios: train 80%, val 10%, test 10%.
 - 2026-11-09: Owner confirmed the model will be used worldwide, and that no owner photos are available (no owner-photo training data or `holdout` set). The SPEC §6 holdout recall target therefore can't be measured as written; proposed substitute to be agreed before T3.
 
@@ -70,6 +86,8 @@ Owner review of `docs/baseline.md` and the holdout (ADR-0008). Then the T3 plan 
 | Open Images CVDF image host (T1) | `image_host: cvdf` downloads images from the official CVDF mirror by split and ID instead of Flickr (no throttling, no deleted photos); attribution still from the metadata CSV. ADR-0006. | `t1-open-images-cvdf-host` |
 | Pre/post-processing, metrics and baseline runner (T2) | One reference letterbox/decode/NMS module; SPEC §6 metrics scored only where a class is annotated; `make baseline` evaluates an ONNX YOLOX model on val/test with a hash-checked checkpoint, run record and miss gallery. ADR-0007. | `t2-baseline` |
 | Curated plate holdout (T2) | Builds an evaluation-only plate set from the Open Images test split (never used in training): downloads candidates, removes near-duplicates of the dataset, draws review sheets, and keeps only images accepted in the committed `configs/holdout/review.csv`. ADR-0008. | `t2-curated-holdout` |
+| YOLOX training pipeline (T3) | Pinned YOLOX source; vehicle pseudo-labels for plate-only images; YOLOX training data with small-box dropping; resumable CUDA training with a run record; ONNX export checked against PyTorch; run evaluation report against SPEC §6; Colab bundle and notebook. ADR-0009/0010/0011. | `t3-train-v0` |
+| Local Apple-GPU training (T3) | `make train` runs on the Mac GPU (MPS) when no CUDA GPU exists: a YOLOX `Trainer` subclass replacing only the CUDA-specific parts, with the same schedule, EMA, resume and checkpoints; keeps the Mac awake; fixed `RUN_ID` for resume. ADR-0012. | `t3-local-mps-training` |
 | Guarded Colab CCPD sampler (partial T1) | Checks archive size and free runtime disk, streams a deterministic cap of 100 JPEGs, and bundles them for transfer. Initial Colab run succeeded; retry diagnostics have synthetic coverage. | Not available (local Git not initialized; owner chose to proceed without Git). |
 
 ## Session notes
@@ -95,3 +113,9 @@ Owner review of `docs/baseline.md` and the holdout (ADR-0008). Then the T3 plan 
 - 2026-11-12: Owner reviewed the full T1 dataset and approved it; T1 closed. Traced the 10 US plates from the spot-check to image IDs (one tile had been mislabelled in my notes and was corrected). Proposed the T2 plan. A web search found no RT-DETRv2-R18 plate model trained on Open Images: RT-DETRv2-R18 checkpoints are COCO-only, and the public plate fine-tunes are R50 trained on Roboflow data of unknown licence.
 - 2026-11-12: T2 on `t2-baseline`. Added `postprocess.py`, `eval/metrics.py`, `eval/baseline.py`, `make baseline`, ADR-0007, `docs/preprocessing.md`, `docs/baseline.md`; new deps numpy (BSD-3) and onnxruntime (MIT). `make lint` clean, `make test` 56 passed. YOLOX-Tiny COCO at 416 (official ONNX, SHA-256 427cc366…): test vehicle recall 0.687 @0.3 (target 0.90), FP/image 1.49, AP@0.5 0.582; val 0.703 / 1.33 / 0.596. Recall is 0.45 for vehicles under 1% of image area (a third of boxes) and over 0.8 for larger ones. The largest misses are Open Images full-frame vehicle labels (plate close-ups, in-car shots). Run `runs/baseline-yolox_tiny_coco-20261112-221740`.
 - 2026-11-12: Built the curated holdout on `t2-curated-holdout` (ADR-0008). Unused plate images in Open Images train/validation ran out (12 left; the training sample uses about 6,080 of 6,090), so candidates come from the official Open Images test split. 300 candidates, 0 near-duplicates of the dataset; reviewed by 4 parallel reviewer agents with fixed criteria plus my re-check of 24 accepts (2 overruled). Result: 244 images, 364 plates, 98 under 32 px wide. Rejects: 34 display or dealer plates labelled as plates, 13 unclear, 8 unlabelled plates, 1 redacted. `make lint` clean, `make test` 63 passed.
+- 2026-11-12: T3 pipeline on `t3-train-v0`. Owner approved all recommended options. Pseudo-labels: 3,805 images and 4,526 vehicle boxes (spot check: boxes correct; empty cases are close-ups). Training data built at 640 and 416. Preprocessing switched to OpenCV-style resize (within 1 grey level of YOLOX); baseline rerun gives test vehicle recall 0.693 (was 0.687). CPU smoke test runs a real YOLOX training step and ONNX export. `make lint` clean, `make test` 70 passed. GPU training can't run locally (YOLOX's trainer needs CUDA), so the owner runs it on free Colab.
+- 2026-11-12: Owner chose local training over Colab. Timing test on the M2 Pro (200 steps, real 640 pipeline): batch 16 fp32 0.66 s/step, about 11 h per 100 epochs; fp16 no faster; batch 32 hits memory pressure (31–54 h). Added `local_trainer.py` (ADR-0012), batch 16 / fp32 / 6 workers in the v0 configs, `make train RUN_ID=` with caffeinate. YOLOX's FLOPs logger (`thop`) needs distutils, which Python 3.12 lacks, so the local trainer logs the parameter count instead. Tests: CPU train, eval and resume, plus a 1-epoch MPS run.
+- 2026-11-12: First local 640 run stalled at epoch 1, iteration 200: the MPS cache grew with each multi-scale size until macOS swapped (14 GB). Fixed by releasing the MPS cache at each size change (ADR-0012), then restarted. Memory now follows the input size (4.4–8.6 GB); ETA about 10.5 h.
+- 2026-11-12: The 640 run crashed at its first evaluation (epoch 10): YOLOX's fast COCO scorer needs a C++ build (ninja). The local trainer now uses pycocotools (same metrics), with a test that scores real detections. The epoch-10 checkpoint was saved before the crash; its val score is AP50 0.809 and AP50:95 0.513 (plate AP 0.561, vehicle 0.465). Resumed from epoch 11.
+- 2026-11-13: 640 run finished (`runs/yolox_tiny_640_v0`, 100 epochs on the Mac GPU, ~11 h, best val AP@0.5:0.95 0.598 at the last epochs; checkpoint SHA-256 ffaa8c75…). ONNX export matches PyTorch (max error 4.5e-6). Test vs SPEC §6: plate recall 0.885 (target 0.95), small plates 0.652 (0.85), vehicles 0.684 (0.90; off-the-shelf baseline 0.693), plate FP/image 0.21 (≤1.0, met); holdout plate recall 0.755, small 0.265. Of 156 missed test plates: 64 not found (48 under 32 px), 51 found below the 0.2 threshold, 41 found with box overlap under 0.5 (many loose Open Images labels). Of vehicle misses, half are found below the 0.3 threshold; many are Open Images full-frame or close-up "vehicle" labels. Val sweep: plate threshold 0.05 gives recall 0.90 at 0.30 FP/image. 416 run started automatically after 640.
+- 2026-11-13: 416 run finished (`runs/yolox_tiny_416_v0`, ~8.7 h, data loading was the bottleneck; best val AP@0.5:0.95 0.608, checkpoint SHA-256 73535a13…; ONNX matches PyTorch, max error 7.3e-6). Test: plate recall 0.747, small plates 0.232, plates ≥32 px ~0.88 (640: ~0.94), vehicles 0.640, plate FP/image 0.11; holdout plate recall 0.698. The val AP during training was higher than 640's because it is scored on the 416 labels, which drop the smallest plates; the full evaluation shows 416 is worse at every plate size. Recommendation to the owner: ship 640, drop 416.

@@ -1,12 +1,12 @@
 # T2 Baseline
 
-Run: `runs/baseline-yolox_tiny_coco-20261112-221740/` (git-ignored). Command: `make baseline CONFIG=configs/baseline/yolox_tiny_coco.yaml`.
+Run: `runs/baseline-yolox_tiny_coco-20261112-234836/` (git-ignored; rerun after ADR-0010 switched preprocessing to OpenCV-style resize). The first run, `…-221740`, used Pillow's resize. Command: `make baseline CONFIG=configs/baseline/yolox_tiny_coco.yaml`.
 
 | Item | Value |
 |---|---|
 | Model | Official YOLOX-Tiny COCO checkpoint, ONNX, Apache-2.0 ([release 0.1.1rc0](https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_tiny.onnx)) |
 | Checkpoint SHA-256 | `427cc366d34e27ff7a03e2899b5e3671425c262ea2291f88bb942bc1cc70b0f7` |
-| Input | 416×416 (the official ONNX file is fixed), BGR, top-left letterbox with 114 padding |
+| Input | 416×416 (the official ONNX file is fixed), BGR, top-left letterbox with 114 padding, OpenCV-style resize (ADR-0010) |
 | Classes | COCO car, motorcycle, bus and truck → `vehicle`. No plate class (COCO has none). |
 | Dataset | `data/processed/combined`, manifest SHA-256 `b0506a1b1944…` (full hash in `summary.json`) |
 | Code | commit `4405076` plus the uncommitted T2 work tree, committed as the `t2-baseline` merge |
@@ -20,10 +20,10 @@ Vehicles are scored only on Open Images images, the only source with vehicle lab
 
 | Split | Images scored | Vehicle boxes | Recall @0.3 | FP / image | AP@0.5 |
 |---|---|---|---|---|---|
-| val | 706 | 1,923 | 0.703 | 1.33 | 0.596 |
-| test | 779 | 2,302 | **0.687** | 1.49 | 0.582 |
+| val | 706 | 1,923 | 0.705 | 1.34 | 0.596 |
+| test | 779 | 2,302 | **0.693** | 1.53 | 0.585 |
 
-SPEC §6 target for v1.0: vehicle recall ≥ 0.90 on `test`. The baseline is 0.21 below it.
+SPEC §6 target for v1.0: vehicle recall ≥ 0.90 on `test`. The baseline is 0.21 below it. The first run, with Pillow's resize, gave test 0.687 / 1.49 / 0.582, so the resize change matters little. The size breakdown below is from the first run.
 
 ### Recall by box size (share of image area)
 
