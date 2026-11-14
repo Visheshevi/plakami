@@ -24,12 +24,7 @@ Owner decisions (2026-11-13):
 2. **Tiled detection (step A).** Run the model on the whole photo plus overlapping tiles and
    merge the boxes. The tiling and merge rule lives once in `src/platedet/postprocess.py`.
    Tile layout and thresholds are chosen on `val` only.
-3. **v1 training (step B), `configs/train/yolox_tiny_640_v1.yaml`.** Same model, input size
-   and schedule as v0. Changes:
-   - plates kept by the readable-size rule (535 more training plates: 117 dropped vs 652);
-   - multi-scale sizes 544–832 px (v0: 480–800). 896 px would overflow 16 GB memory
-     (ADR-0012);
-   - mosaic zoom 0.5–2.0 (v0: 0.5–1.5), so training also sees plates at the scale tiles show.
+
    **Tile layout chosen on val (v0 model, 2026-11-13): 2×2 with 0.2 overlap.**
 
    | val | whole image | 2×2 (5 passes) | 3×3 (10 passes) |
@@ -40,6 +35,12 @@ Owner decisions (2026-11-13):
    | plate FP/image | 0.14 | 0.35 | 0.47 |
 
    3×3 doubles the cost for under one point more.
+3. **v1 training (step B), `configs/train/yolox_tiny_640_v1.yaml`.** Same model, input size
+   and schedule as v0. Changes:
+   - plates kept by the readable-size rule (535 more training plates: 117 dropped vs 652);
+   - multi-scale sizes 544–832 px (v0: 480–800). 896 px would overflow 16 GB memory
+     (ADR-0012);
+   - mosaic zoom 0.5–2.0 (v0: 0.5–1.5), so training also sees plates at the scale tiles show.
 4. **Step C (800 px input)** only if A and B fall short.
 
 ## Proposed SPEC §6 wording (owner to approve)
