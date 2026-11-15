@@ -46,7 +46,7 @@ test-vectors:
 	PYTHONPATH=src uv run --locked python -m platedet.export.test_vectors $(if $(CHECK),--check)
 
 try:
-	PYTHONPATH=src uv run --locked python -m platedet.tools.try_model --images $(IMAGES) $(if $(OUT),--out $(OUT)) $(if $(MODEL),--model $(MODEL)) $(if $(NO_TILES),--no-tiles)
+	PYTHONPATH=src uv run --locked python -m platedet.tools.try_model --images $(or $(IMAGES),data/my_photos) $(if $(OUT),--out $(OUT)) $(if $(MODEL),--model $(MODEL)) $(if $(NO_TILES),--no-tiles)
 
 parity:
 	PYTHONPATH=src uv run --locked python -m platedet.parity.parity --run $(RUN) $(if $(LIMIT),--limit $(LIMIT))

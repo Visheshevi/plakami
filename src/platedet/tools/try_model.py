@@ -1,6 +1,7 @@
 """Run the release candidate on your own photos and save copies with the boxes drawn.
 
-`make try IMAGES=~/Pictures/cars` (or `OUT=…`, `MODEL=onnx`, `NO_TILES=1`)
+`make try` (photos in data/my_photos/) or `make try IMAGES=~/Pictures/cars`
+(also `OUT=…`, `MODEL=onnx`, `NO_TILES=1`)
 
 Uses the shipped model (TFLite FP16 by default), the recommended thresholds and 2x2 tiling
 from `configs/release/v1.yaml`, and the shared pre/post-processing. Phone photos are turned
