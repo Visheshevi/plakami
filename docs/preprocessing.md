@@ -40,6 +40,7 @@ The cost is `1 + grid²` model passes per photo.
 - A detection matches a ground-truth box at IoU ≥ 0.5. Matching is greedy by score and one-to-one.
 - Recall is computed at the SPEC §6 thresholds: plates 0.2, vehicles 0.3.
 - **Unreadable plates are ignored (ADR-0013).** These are plates under **12 px** wide in the evaluated image. They don't count as misses, and a detection matching one (IoU ≥ 0.5) is not a false positive. Reports also show the targets with every plate counted.
+- **Label audit (ADR-0014).** Once `configs/audit/plate_labels.csv` exists, reports add an *Audited* column. There, labels flagged `loose` or `not_plate` are ignored in the same way.
 - Small plates are those whose ground truth is 12–32 px wide in original pixels. With the ignore rule off, this means under 32 px.
 - A class is scored only on images where it is annotated (`annotated_classes`). Plate-only sources (CCPD, Kaggle) don't count vehicle misses or vehicle false positives.
 - AP@0.5 is the all-point interpolated area under the precision/recall curve, using detections down to `collect_conf` (0.01).

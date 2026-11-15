@@ -5,7 +5,10 @@ with `--tiles N`) with summary.json, predictions, miss galleries and report.md (
 against the v1.0 targets and the worst misses with image paths).
 
 Unreadable plates (under 12 px wide) are ignored (ADR-0013); the report also shows the
-targets with every plate counted, as SPEC §6 is currently written.
+targets with every plate counted, as SPEC §6 is currently written, and, once the plate label
+audit exists (`configs/audit/`, ADR-0014), with audit-flagged labels ignored.
+
+`--rescore` reuses the saved predictions in the output folder instead of running the model.
 """
 
 from __future__ import annotations
@@ -26,8 +29,9 @@ from platedet.eval.baseline import (
     evaluate,
     sha256_file,
 )
+from platedet.eval.label_audit import flagged_annotation_ids
 from platedet.eval.metrics import READABLE_PLATE_WIDTH
-from platedet.postprocess import DEFAULT_TILE_OVERLAP
+from platedet.postprocess import DEFAULT_TILE_OVERLAP, Detection
 
 LOGGER = logging.getLogger("platedet.eval")
 DEFAULT_DATASET_DIR = Path("data/processed/combined")
@@ -83,21 +87,33 @@ def write_report(run_dir: Path, summary: dict[str, Any], out_dir: Path | None = 
         lines += [f"Tiled detection: {summary['tiles']} (ADR-0013).", ""]
     lines += ["## Targets (SPEC §6)", ""]
     all_rows = summary.get("targets_all_plates")
+    audited_rows = summary.get("targets_audited")
+    header = "| Metric | Value | Target | Met |"
     if all_rows:
         lines += [
             f"Plates under {summary['min_plate_width']:g} px wide are ignored (ADR-0013). "
-            "The last column counts every plate, as SPEC §6 is currently written.",
+            "*All plates* counts every plate, as SPEC §6 is currently written.",
             "",
-            "| Metric | Value | Target | Met | All plates |",
-            "|---|---|---|---|---|",
         ]
-    else:
-        lines += ["| Metric | Value | Target | Met |", "|---|---|---|---|"]
+        header += " All plates |"
+    if audited_rows:
+        flagged = ", ".join(f"{s}: {n}" for s, n in summary["audit_flagged"].items())
+        lines += [
+            "*Audited* also ignores labels the plate label audit flagged as loose or "
+            f"not a plate (ADR-0014; flagged {flagged}).",
+            "",
+        ]
+        header += " Audited | Met (audited) |"
+    lines += [header, "|" + "---|" * (header.count("|") - 1)]
     for index, row in enumerate(summary["targets"]):
         met = {True: "yes", False: "**no**", None: "n/a"}[row["met"]]
         line = f"| {row['metric']} | {_fmt(row['value'])} | {row['target']} | {met} |"
         if all_rows:
             line += f" {_fmt(all_rows[index]['value'])} |"
+        if audited_rows:
+            audited = audited_rows[index]
+            audited_met = {True: "yes", False: "**no**", None: "n/a"}[audited["met"]]
+            line += f" {_fmt(audited['value'])} | {audited_met} |"
         lines.append(line)
     lines += [
         "",
@@ -140,6 +156,26 @@ def write_report(run_dir: Path, summary: dict[str, Any], out_dir: Path | None = 
     return path
 
 
+class SavedPredictor:
+    """Detections from an earlier run's `predictions_<split>.jsonl`, looked up by image path."""
+
+    def __init__(self, out_dir: Path, split_dirs: dict[str, Path]) -> None:
+        self.detections: dict[str, list[Detection]] = {}
+        for split, split_dir in split_dirs.items():
+            path = out_dir / f"predictions_{split}.jsonl"
+            if not path.is_file():
+                raise FileNotFoundError(f"--rescore needs {path}")
+            for line in path.read_text(encoding="utf-8").splitlines():
+                record = json.loads(line)
+                key = str((split_dir / record["file_name"]).resolve())
+                self.detections[key] = [
+                    Detection(*map(float, d[:5]), int(d[5])) for d in record["detections"]
+                ]
+
+    def __call__(self, image: Any) -> list[Detection]:
+        return self.detections[str(Path(image.filename).resolve())]
+
+
 def evaluate_run(
     run_dir: Path,
     *,
@@ -149,6 +185,7 @@ def evaluate_run(
     predictor: Any = None,
     tiles: int = 1,
     overlap: float = DEFAULT_TILE_OVERLAP,
+    rescore: bool = False,
 ) -> dict[str, Any]:
     run_config = yaml.safe_load((run_dir / "config.yaml").read_text(encoding="utf-8"))
     model_path = run_dir / "model.onnx"
@@ -164,6 +201,17 @@ def evaluate_run(
         "min_plate_width": READABLE_PLATE_WIDTH,
     }
     nms_iou = float(run_config.get("nms_iou", 0.45))
+    split_dirs = {s: holdout_dir if s == "holdout" else dataset_dir for s in splits}
+    audit = {
+        split: ids
+        for split in splits
+        if (ids := flagged_annotation_ids(split, split_dirs[split])) is not None
+    }
+    if audit:
+        config["audit_ignored_ids"] = audit
+    out_dir = run_dir / ("eval" if tiles == 1 else f"eval_tiles{tiles}")
+    if rescore:
+        predictor = SavedPredictor(out_dir, split_dirs)
     if predictor is None:
         predictor = OnnxYoloxPredictor(
             model_path,
@@ -173,9 +221,8 @@ def evaluate_run(
             nms_iou=nms_iou,
             class_map=None,
         )
-    if tiles > 1:
+    if tiles > 1 and not rescore:
         predictor = TiledPredictor(predictor, grid=tiles, overlap=overlap, nms_iou=nms_iou)
-    out_dir = run_dir / ("eval" if tiles == 1 else f"eval_tiles{tiles}")
     out_dir.mkdir(parents=True, exist_ok=True)
     results = evaluate(config, predictor, out_dir)
     summary = {
@@ -198,6 +245,8 @@ def evaluate_run(
     summary["targets"] = target_rows(summary["metrics"])
     if "metrics_all_plates" in summary:
         summary["targets_all_plates"] = target_rows(summary["metrics_all_plates"])
+    if "metrics_audited" in summary:
+        summary["targets_audited"] = target_rows(summary["metrics_audited"])
     (out_dir / "summary.json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     write_report(run_dir, summary, out_dir)
     return summary
@@ -210,6 +259,7 @@ def main() -> None:
     parser.add_argument("--tiles", type=int, default=1, help="N for whole image + N x N tiles")
     parser.add_argument("--overlap", type=float, default=DEFAULT_TILE_OVERLAP)
     parser.add_argument("--splits", default="val,test,holdout")
+    parser.add_argument("--rescore", action="store_true", help="reuse saved predictions")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     run_dir = args.runs_dir / args.run
@@ -218,6 +268,7 @@ def main() -> None:
         splits=tuple(args.splits.split(",")),
         tiles=args.tiles,
         overlap=args.overlap,
+        rescore=args.rescore,
     )
     print(run_dir / ("eval" if args.tiles == 1 else f"eval_tiles{args.tiles}") / "report.md")
 

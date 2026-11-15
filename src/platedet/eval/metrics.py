@@ -6,6 +6,8 @@ plate-only sources neither count missed vehicles nor punish vehicle detections.
 
 With `min_plate_width` (ADR-0013), plates narrower than that are unreadable and ignored:
 they are not counted as misses, and a detection matching one is not a false positive.
+`ignored_ids` (ADR-0014) ignores ground-truth boxes by annotation ID the same way, e.g.
+labels flagged by the plate label audit.
 """
 
 from __future__ import annotations
@@ -29,6 +31,7 @@ class GroundTruth:
     x2: float
     y2: float
     class_id: int
+    annotation_id: int | None = None
 
     @property
     def width(self) -> float:
@@ -73,16 +76,26 @@ def match_image(
 
 
 def _class_items(
-    image: ImageResult, class_id: int, min_score: float, min_plate_width: float | None = None
+    image: ImageResult,
+    class_id: int,
+    min_score: float,
+    min_plate_width: float | None = None,
+    ignored_ids: frozenset[int] = frozenset(),
 ) -> tuple[list[GroundTruth], list[GroundTruth], list[Detection]]:
     """(scored ground truth, ignored ground truth, detections) for one class in one image."""
     ground_truth = [g for g in image.ground_truth if g.class_id == class_id]
     detections = [d for d in image.detections if d.class_id == class_id and d.score >= min_score]
-    if class_id != PLATE or min_plate_width is None:
-        return ground_truth, [], detections
-    scored = [g for g in ground_truth if g.width >= min_plate_width]
-    ignored = [g for g in ground_truth if g.width < min_plate_width]
-    return scored, ignored, detections
+
+    def ignore(box: GroundTruth) -> bool:
+        if box.annotation_id is not None and box.annotation_id in ignored_ids:
+            return True
+        return class_id == PLATE and min_plate_width is not None and box.width < min_plate_width
+
+    return (
+        [g for g in ground_truth if not ignore(g)],
+        [g for g in ground_truth if ignore(g)],
+        detections,
+    )
 
 
 def _match(
@@ -91,12 +104,15 @@ def _match(
     min_score: float,
     iou_threshold: float,
     min_plate_width: float | None,
+    ignored_ids: frozenset[int] = frozenset(),
 ) -> tuple[list[GroundTruth], list[bool], list[Detection], list[bool]]:
     """Match one class in one image; unmatched detections on ignored boxes are removed.
 
     Returns (scored ground truth, gt_matched, kept detections, detection_is_true_positive).
     """
-    ground_truth, ignored, detections = _class_items(image, class_id, min_score, min_plate_width)
+    ground_truth, ignored, detections = _class_items(
+        image, class_id, min_score, min_plate_width, ignored_ids
+    )
     gt_matched, detection_tp = match_image(ground_truth, detections, iou_threshold)
     if ignored and detections:
         ignored_boxes = np.array([[g.x1, g.y1, g.x2, g.y2] for g in ignored], dtype=np.float64)
@@ -116,6 +132,7 @@ def recall_at(
     iou_threshold: float = 0.5,
     max_width: float | None = None,
     min_plate_width: float | None = None,
+    ignored_ids: frozenset[int] = frozenset(),
 ) -> dict[str, float | int | None]:
     """Recall, missed count and false positives per image at one confidence threshold.
 
@@ -128,7 +145,7 @@ def recall_at(
             continue
         scored_images += 1
         ground_truth, gt_matched, _, detection_tp = _match(
-            image, class_id, conf_threshold, iou_threshold, min_plate_width
+            image, class_id, conf_threshold, iou_threshold, min_plate_width, ignored_ids
         )
         for box, hit in zip(ground_truth, gt_matched, strict=True):
             if max_width is not None and box.width >= max_width:
@@ -153,6 +170,7 @@ def average_precision(
     *,
     iou_threshold: float = 0.5,
     min_plate_width: float | None = None,
+    ignored_ids: frozenset[int] = frozenset(),
 ) -> float | None:
     """All-point interpolated AP (VOC 2010+ / COCO-style area under the PR curve)."""
     scores: list[float] = []
@@ -162,7 +180,7 @@ def average_precision(
         if class_id not in image.annotated_classes:
             continue
         ground_truth, _, detections, detection_tp = _match(
-            image, class_id, 0.0, iou_threshold, min_plate_width
+            image, class_id, 0.0, iou_threshold, min_plate_width, ignored_ids
         )
         total += len(ground_truth)
         scores.extend(d.score for d in detections)
@@ -186,6 +204,7 @@ def missed_boxes(
     conf_threshold: float,
     iou_threshold: float = 0.5,
     min_plate_width: float | None = None,
+    ignored_ids: frozenset[int] = frozenset(),
 ) -> list[tuple[ImageResult, GroundTruth]]:
     """Ground-truth boxes not found at the threshold, largest (most obvious) first."""
     misses: list[tuple[ImageResult, GroundTruth]] = []
@@ -193,7 +212,7 @@ def missed_boxes(
         if class_id not in image.annotated_classes:
             continue
         ground_truth, gt_matched, _, _ = _match(
-            image, class_id, conf_threshold, iou_threshold, min_plate_width
+            image, class_id, conf_threshold, iou_threshold, min_plate_width, ignored_ids
         )
         misses.extend(
             (image, box) for box, hit in zip(ground_truth, gt_matched, strict=True) if not hit
@@ -209,6 +228,7 @@ def summarize(
     iou_threshold: float = 0.5,
     model_classes: frozenset[int] = frozenset(CLASS_NAMES),
     min_plate_width: float | None = None,
+    ignored_ids: frozenset[int] = frozenset(),
 ) -> dict[str, object]:
     """All SPEC §6 metrics for one split. Classes the model can't predict are reported as None.
 
@@ -229,9 +249,14 @@ def summarize(
                 thresholds[class_id],
                 iou_threshold=iou_threshold,
                 min_plate_width=min_plate_width,
+                ignored_ids=ignored_ids,
             ),
             "ap50": average_precision(
-                images, class_id, iou_threshold=iou_threshold, min_plate_width=min_plate_width
+                images,
+                class_id,
+                iou_threshold=iou_threshold,
+                min_plate_width=min_plate_width,
+                ignored_ids=ignored_ids,
             ),
         }
         if class_id == 1:
@@ -242,6 +267,7 @@ def summarize(
                 iou_threshold=iou_threshold,
                 max_width=SMALL_PLATE_WIDTH,
                 min_plate_width=min_plate_width,
+                ignored_ids=ignored_ids,
             )
         summary[name] = entry
     return summary

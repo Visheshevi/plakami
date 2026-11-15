@@ -66,7 +66,14 @@ def load_split(dataset_dir: Path, split: str) -> list[ImageResult]:
     for annotation in dataset["annotations"]:
         x, y, width, height = annotation["bbox"]
         images[annotation["image_id"]].ground_truth.append(
-            GroundTruth(x, y, x + width, y + height, int(annotation["category_id"]))
+            GroundTruth(
+                x,
+                y,
+                x + width,
+                y + height,
+                int(annotation["category_id"]),
+                int(annotation["id"]) if "id" in annotation else None,
+            )
         )
     return list(images.values())
 
@@ -215,6 +222,7 @@ def evaluate(
     model_classes = frozenset(class_map.values()) if class_map else frozenset(CLASS_NAMES)
     metrics: dict[str, Any] = {}
     metrics_all_plates: dict[str, Any] = {}
+    metrics_audited: dict[str, Any] = {}
     worst_misses: dict[str, Any] = {}
     for split in config["splits"]:
         if split not in EVAL_SPLITS:
@@ -255,6 +263,16 @@ def evaluate(
             model_classes=model_classes,
             min_plate_width=min_plate_width,
         )
+        audit_ids = (config.get("audit_ignored_ids") or {}).get(split)
+        if audit_ids is not None:
+            metrics_audited[split] = summarize(
+                images,
+                plate_conf=float(config["plate_conf"]),
+                vehicle_conf=float(config["vehicle_conf"]),
+                model_classes=model_classes,
+                min_plate_width=min_plate_width,
+                ignored_ids=audit_ids,
+            )
         if min_plate_width is not None:
             metrics_all_plates[split] = summarize(
                 images,
@@ -280,6 +298,8 @@ def evaluate(
     results: dict[str, Any] = {"metrics": metrics, "worst_misses": worst_misses}
     if metrics_all_plates:
         results["metrics_all_plates"] = metrics_all_plates
+    if metrics_audited:
+        results["metrics_audited"] = metrics_audited
     return results
 
 

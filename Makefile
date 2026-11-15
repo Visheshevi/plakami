@@ -1,4 +1,4 @@
-.PHONY: pseudo-labels train-data train export eval colab-bundle setup data data-combine holdout-prepare holdout-finalize baseline test lint
+.PHONY: audit-prepare audit-finalize pseudo-labels train-data train export eval colab-bundle setup data data-combine holdout-prepare holdout-finalize baseline test lint
 
 DATA_CONFIG ?= configs/data/open_images.yaml
 
@@ -14,6 +14,12 @@ data-combine:
 
 holdout-prepare:
 	PYTHONPATH=src uv run --locked python -m platedet.data.holdout prepare --config configs/holdout/open_images_curated.yaml
+
+audit-prepare:
+	PYTHONPATH=src uv run --locked python -m platedet.eval.label_audit prepare
+
+audit-finalize:
+	PYTHONPATH=src uv run --locked python -m platedet.eval.label_audit finalize
 
 holdout-finalize:
 	PYTHONPATH=src uv run --locked python -m platedet.data.holdout finalize --config configs/holdout/open_images_curated.yaml
@@ -33,7 +39,7 @@ export:
 	PYTHONPATH=src uv run --locked python -m platedet.export.onnx_export --run-dir runs/$(RUN)
 
 eval:
-	PYTHONPATH=src uv run --locked python -m platedet.eval.evaluate_run --run $(RUN) $(if $(TILES),--tiles $(TILES)) $(if $(SPLITS),--splits $(SPLITS))
+	PYTHONPATH=src uv run --locked python -m platedet.eval.evaluate_run --run $(RUN) $(if $(TILES),--tiles $(TILES)) $(if $(SPLITS),--splits $(SPLITS)) $(if $(RESCORE),--rescore)
 
 colab-bundle:
 	PYTHONPATH=src uv run --locked python -m platedet.train.colab_bundle
