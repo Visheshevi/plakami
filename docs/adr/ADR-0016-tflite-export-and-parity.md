@@ -49,6 +49,37 @@ Its default `flatbuffer_direct` backend produced an FP16 file with float16 input
   - 16-bit activations (already built, but very slow on CPU);
   - quantisation-aware training.
 
+## Re-run after the tile-edge fix (2026-11-15)
+
+While preparing `make try`, a tiled photo showed fragment boxes: tile boxes of a cut-off car that stopped 4 px short of the tile edge, so the old 2 px margin kept them.
+
+- **Fix.** The margin is now 2% of the tile size (ADR-0013 addendum), chosen on `val`.
+- **Rejected alternatives,** both tried on `val`:
+  - dropping tile boxes that lie inside a whole-image box (costs 1–3 points of recall);
+  - favouring whole-image boxes on near-ties (costs a small plate, gains nothing).
+
+Results with the fix, on the same 1,435 images:
+
+| FP16 vs ONNX | Reference boxes | Within tolerance | Off | Missing |
+|---|---|---|---|---|
+| Single pass, plates / vehicles | 1,767 / 3,392 | all | 0 | 0 |
+| 2×2 tiles, plates / vehicles | 2,087 / 4,029 | 2,085 / 4,028 | 2 / 1 | 0 / 0 |
+
+- The 3 remaining tiled differences are near-ties between two passes: same plate, slightly different box, Δconf ≤ 0.002.
+- The SPEC §7 check (single pass) passes.
+- Speed per tiled photo on the owner's Mac: ONNX 369 ms, FP16 440 ms.
+
+v1 + 2×2 tiles with the fix, audited test/holdout:
+
+| Metric | Value | Target |
+|---|---|---|
+| Test plate recall | 0.948 | 0.95 |
+| Test small-plate recall | 0.849 | 0.85 |
+| Holdout plate recall | 0.900 | 0.95 |
+| Test plate FP/image | 0.39 | ≤ 1.0 |
+| Test vehicle recall | 0.738 | 0.90 |
+| Test vehicle FP/image | 1.41 (was 1.66) | — |
+
 ## Consequences
 
 - `make export` needs `uvx` and, the first time, a network download of about 1 GB of tool packages (cached afterwards).

@@ -1,6 +1,6 @@
 # Project Progress
 
-## Current step: T5 — Export + parity (plan awaiting owner approval)
+## Current step: T5 — Export + parity (done; owner validating with `make try`)
 
 ### T0 — Scaffold
 
@@ -147,3 +147,4 @@ T5 plan proposed to the owner (TFLite FP16/INT8 via onnx2tf, parity, speed, size
 - 2026-11-14: Owner accepted v1 + 2×2 tiles for release (test 0.947, small 0.849, holdout 0.900, vehicles 0.741; FP 0.42). ADR-0015 records the gap; targets unchanged. T4 closed and merged to `main`.
 - 2026-11-14: Owner dropped the blur tool (apps blur boxes themselves). After T5/T6 and the owner's own testing, write a mobile-integration `README.md` on request.
 - 2026-11-15: TFLite export (`make export`): FP16 9.7 MB, INT8 5.1 MB, calibration list recorded. Parity on 1,435 test+holdout images: FP16 single pass 5,159/5,159 within tolerance (Δconf ≤ 0.003); with tiles 16 of 6,442 boxes differ (merge tie-breaks; plates still boxed). INT8 fails (16 plates missing single pass). Owner: ship FP16 only. Mac CPU per tiled photo: ONNX 381 ms, FP16 441 ms. ADR-0016.
+- 2026-11-15: Owner approved thresholds plate 0.10 / vehicle 0.30 (ADR-0017, `configs/release/v1.yaml`). Added `make try` (owner validation) and `make test-vectors` (5 vectors, `CHECK=1` reproduces). `make try` exposed tile fragment boxes: edge margin now 2% of tile (val: vehicle FP 1.45 → 1.22, no recall loss). Re-run: audited test 0.948, small 0.849, holdout 0.900, plate FP 0.39; FP16 parity single pass all within tolerance, tiled 3 near-tie differences, 0 missing. `make test` 94 passed.
