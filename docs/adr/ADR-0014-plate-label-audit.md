@@ -46,6 +46,25 @@ Owner decisions (2026-11-14):
 - `not_plate`: no plate in or near the box (empty holder, bumper, sign, sticker, blank or
   blurred-out area). A blurry, dark or small real plate is not `not_plate`.
 
+## Review record (2026-11-14)
+
+- 5 reviewer agents, 17 sheets each, same criteria. Results:
+  - test: 1,283 ok, 27 loose, 40 not_plate;
+  - holdout: 311 ok, 2 loose, 20 not_plate.
+- I re-checked 2 random sheets from the all-ok CCPD batch (40 boxes): all ok.
+- Owner spot check: 50 random decisions (25 flagged, 25 ok, seed 20261114). The owner agreed with all 50.
+  - On #3 (test/659, loose) the owner noted the box covers half the plate, which is still loose.
+  - On #22 (test/1354) the owner noted an unlabelled plate on another car. Unlabelled plates are out of scope.
+- Most not_plate labels are deliberately blanked plates (Open Images anonymisation) or dealer, show or novelty inserts with no registration. Whether these count as plates is an open owner decision, as is redrawing versus ignoring loose boxes.
+
+With flagged labels ignored, v1 + 2×2 tiles scores:
+
+| Metric | Audited | Unaudited | Target |
+|---|---|---|---|
+| Test plate recall | 0.947 | 0.933 | 0.95 |
+| Test small-plate recall | 0.849 | 0.841 | 0.85 |
+| Holdout plate recall | 0.900 | 0.886 | 0.95 |
+
 ## Consequences
 
 - Ignoring flagged labels shrinks the denominator. Reports show the flagged count per split,

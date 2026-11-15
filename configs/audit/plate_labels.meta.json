@@ -1,0 +1,7 @@
+{
+  "annotations_sha256": {
+    "test": "f1e1b9f996bb5a9388c943ca88efb8a98e4449c3b89f66102235fdbe5bca7fa7",
+    "holdout": "fd42dab12712cccbfa588938c102cc0b9ac0cfff642619af4d042af9f061beea"
+  },
+  "readable_plate_width": 12.0
+}
