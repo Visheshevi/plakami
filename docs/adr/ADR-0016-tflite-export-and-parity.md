@@ -28,6 +28,27 @@ Its default `flatbuffer_direct` backend produced an FP16 file with float16 input
    - A file passes only with zero missing and zero out-of-tolerance boxes, in both modes.
    - FP16 must pass; INT8 ships only if it passes too.
 
+## Results for v1 (`runs/yolox_tiny_640_v1`, 2026-11-15)
+
+1,435 test and holdout images; full report in `runs/yolox_tiny_640_v1/parity/report.md`.
+
+| File | Single pass (SPEC §7) | 2×2 tiles (extra check) | Size | Mac CPU, per pass / per tiled photo |
+|---|---|---|---|---|
+| ONNX FP32 | reference | reference | 19.3 MB | 54 / 381 ms |
+| FP16 | 5,159/5,159 within tolerance; max Δconf 0.003, min IoU 0.951 | 6,426/6,442; 3 plate and 13 vehicle differences | 9.7 MB | 68 / 441 ms (4 threads) |
+| INT8 | 3,691/5,159; 16 plates missing; Δconf up to 0.47 | 54 plates missing | 5.1 MB | 24 / 216 ms |
+
+- **FP16 passes the SPEC §7 parity check.**
+- **The tiled differences come from tile-merge tie-breaks,** not from the model.
+  - Two passes find the same object with nearly equal confidence, and a fourth-decimal difference decides which box survives.
+  - In the plate cases I examined, the same plates are boxed. One differs by 1 px. In the other, ONNX keeps an extra overlapping fragment box on a full-frame close-up.
+  - These differences are documented, not hidden. The tiled check stays strict and is reported with every parity run.
+- **INT8 fails and is not shipped.** That follows SPEC §7, and the owner decided on 2026-11-15 to ship FP16 only. The INT8 file is kept as `tflite/detector_int8_failed_parity.tflite` for reference.
+- **Possible later fixes for INT8:**
+  - mixed precision, keeping the head in float;
+  - 16-bit activations (already built, but very slow on CPU);
+  - quantisation-aware training.
+
 ## Consequences
 
 - `make export` needs `uvx` and, the first time, a network download of about 1 GB of tool packages (cached afterwards).
