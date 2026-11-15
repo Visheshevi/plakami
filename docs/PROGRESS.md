@@ -1,6 +1,6 @@
 # Project Progress
 
-## Current step: T4 — Iterate: small plates (ADR-0013)
+## Current step: T5 — Export + parity (plan awaiting owner approval)
 
 ### T0 — Scaffold
 
@@ -65,11 +65,11 @@ Bounded sample results (`MAX_IMAGES=100`): 83 usable images; 17 image URLs retur
 - [x] Owner rules (2026-11-14): blanked plates and dealer/show inserts count as plates (applied, ADR-0014)
 - [x] Owner reviewed the 31 loose boxes: 25 accepted, 6 redrawn (`corrections.json`, hash in meta)
 - [x] All 25 accepted loose boxes redrawn (owner go-ahead 2026-11-14); 31 corrections in total
-- [ ] Owner checks the redraw sheets (`data/processed/label_audit/loose/redraw_check_*.jpg`)
+- [x] Owner accepts the model for v1 (2026-11-14); gap recorded in ADR-0015
 
 ### Next up
 
-Waiting for the owner to check the 25 redrawn boxes. Then the remaining gap (v1 + tiles, audited): test 0.947 / 0.95, small 0.849 / 0.85, holdout 0.900 / 0.95; options: val-tuned plate threshold (SPEC change), 800 px model (step C).
+T5 plan proposed to the owner (TFLite FP16/INT8 via onnx2tf, parity, speed, size). Release candidate: `runs/yolox_tiny_640_v1` + 2×2 tiles (ADR-0015).
 
 ### Open owner decisions
 
@@ -103,6 +103,7 @@ Waiting for the owner to check the 25 redrawn boxes. Then the remaining gap (v1 
 | Pre/post-processing, metrics and baseline runner (T2) | One reference letterbox/decode/NMS module; SPEC §6 metrics scored only where a class is annotated; `make baseline` evaluates an ONNX YOLOX model on val/test with a hash-checked checkpoint, run record and miss gallery. ADR-0007. | `t2-baseline` |
 | Curated plate holdout (T2) | Builds an evaluation-only plate set from the Open Images test split (never used in training): downloads candidates, removes near-duplicates of the dataset, draws review sheets, and keeps only images accepted in the committed `configs/holdout/review.csv`. ADR-0008. | `t2-curated-holdout` |
 | YOLOX training pipeline (T3) | Pinned YOLOX source; vehicle pseudo-labels for plate-only images; YOLOX training data with small-box dropping; resumable CUDA training with a run record; ONNX export checked against PyTorch; run evaluation report against SPEC §6; Colab bundle and notebook. ADR-0009/0010/0011. | `t3-train-v0` |
+| Small-plate improvements (T4) | Tiled detection (whole image + 2×2 tiles) in `postprocess.py`; unreadable-plate ignore rule; v1 training config keeping every readable plate; plate label audit for test/holdout with owner-checked decisions and redrawn boxes; audited scores and `RESCORE`. ADR-0013/0014/0015. | `t4-small-plates` |
 | Local Apple-GPU training (T3) | `make train` runs on the Mac GPU (MPS) when no CUDA GPU exists: a YOLOX `Trainer` subclass replacing only the CUDA-specific parts, with the same schedule, EMA, resume and checkpoints; keeps the Mac awake; fixed `RUN_ID` for resume. ADR-0012. | `t3-local-mps-training` |
 | Guarded Colab CCPD sampler (partial T1) | Checks archive size and free runtime disk, streams a deterministic cap of 100 JPEGs, and bundles them for transfer. Initial Colab run succeeded; retry diagnostics have synthetic coverage. | Not available (local Git not initialized; owner chose to proceed without Git). |
 
@@ -143,3 +144,4 @@ Waiting for the owner to check the 25 redrawn boxes. Then the remaining gap (v1 
 - 2026-11-14: Owner rules: blanked plates and dealer/show inserts count as plates. Of 52 such labels, 49 became ok, 2 loose, 1 kept not_plate (checked by eye). Audit now: test 1,316 / 28 / 6, holdout 327 / 3 / 3. Audited v1 + tiles: test 0.948, small 0.849, holdout 0.902. Loose-box sheets for the owner in `data/processed/label_audit/loose/`.
 - 2026-11-14: Owner reviewed the 31 loose boxes: 25 accepted, 6 redrawn by me from the photos and checked on a before/after sheet (`make audit-corrections`; boxes stay in `data/`). Accepted oversized labels make 15 tight model boxes count as misses (14 of 15 overlap the plate). Audited v1 + tiles: test 0.938, holdout 0.900. `make test` 86 passed.
 - 2026-11-14: Redrew all 25 accepted loose boxes from the photos (model-blind; all, not only the 15 the model missed). Audited v1 + tiles: test 0.947, small 0.849, holdout 0.900, FP/image 0.418.
+- 2026-11-14: Owner accepted v1 + 2×2 tiles for release (test 0.947, small 0.849, holdout 0.900, vehicles 0.741; FP 0.42). ADR-0015 records the gap; targets unchanged. T4 closed and merged to `main`.
