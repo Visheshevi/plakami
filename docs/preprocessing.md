@@ -30,7 +30,7 @@ For one photo at a time, small plates are found better by also running the model
 
 1. **Whole image.** Run the model on the whole image.
 2. **Tiles.** Split the image into a `grid × grid` set of tiles with overlap `overlap` (default 0.2). Along each axis, a tile spans `ceil(dim / (grid − (grid − 1) × overlap))` pixels, capped at `dim`. Tile `i` starts at `round(i × (dim − tile) / (grid − 1))`. Tiles are row-major and cropped from the original image.
-3. **Run per tile.** Run the model on each tile. Drop any tile box within **2 px** of a tile edge that is not also an image edge, because the object is cut off. Then shift the remaining boxes by the tile's top-left corner.
+3. **Run per tile.** Run the model on each tile. Drop any tile box within **2% of the tile size** (at least 2 px) of a tile edge that is not also an image edge, because the object is cut off. Then shift the remaining boxes by the tile's top-left corner.
 4. **Merge.** Merge the whole-image and tile boxes with the same class-aware greedy NMS (IoU > `nms_iou` suppressed, highest score first).
 
 The cost is `1 + grid²` model passes per photo.

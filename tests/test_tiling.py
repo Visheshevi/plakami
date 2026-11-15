@@ -90,3 +90,17 @@ def test_unreadable_plates_are_neither_misses_nor_false_positives():
     assert average_precision([image], 1, min_plate_width=12) == pytest.approx(0.5)
     small = summarize([image], min_plate_width=12)["license_plate"]["small_plates"]
     assert small["ground_truth"] == 1 and small["missed"] == 1
+
+
+def test_tile_fragments_near_an_inner_edge_are_dropped():
+    from platedet.postprocess import merge_tiled
+
+    # A 1000 px wide image; the left tile ends at x=600, so 2% is a 12 px margin.
+    window = (0, 0, 600, 500)
+    fragment = Detection(100, 100, 592, 400, 0.8, 2)  # stops 8 px short of the inner edge
+    inside = Detection(100, 100, 560, 400, 0.8, 2)  # 40 px away: kept
+    merged = merge_tiled([], [(window, [fragment])], 1000, 500)
+    assert merged == []
+    assert merge_tiled([], [(window, [inside])], 1000, 500) == [inside]
+    # With the old fixed 2 px margin the fragment would have survived.
+    assert merge_tiled([], [(window, [fragment])], 1000, 500, edge_margin=0.0) == [fragment]

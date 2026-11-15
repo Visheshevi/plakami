@@ -48,6 +48,7 @@ make eval RUN=<run_id> [TILES=2] [SPLITS=val] [RESCORE=1]  # metrics + error gal
 make audit-prepare     # plate label audit sheets for test/holdout (ADR-0014)
 make audit-finalize    # check the review and write configs/audit/plate_labels.csv
 make export RUN=<run_id>                # ONNX (checked against PyTorch) + TFLite FP16/INT8 via pinned onnx2tf (ADR-0016)
+make try IMAGES=<folder> [OUT=<folder>]  # run the release candidate on your own photos, save boxed copies
 make parity RUN=<run_id> [LIMIT=n]      # ONNX vs TFLite parity (single pass + 2x2 tiles), speed, size
 make test       # pytest (unit + smoke train/export on tests/data/smoke)
 make lint       # ruff check + ruff format --check
