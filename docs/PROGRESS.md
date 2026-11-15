@@ -59,11 +59,14 @@ Bounded sample results (`MAX_IMAGES=100`): 83 usable images; 17 image URLs retur
 - [x] Step B: retrain 640 for small plates (`configs/train/yolox_tiny_640_v1.yaml`, `runs/yolox_tiny_640_v1`)
 - [x] Step A: tiled detection in `postprocess.py`, evaluation option, readable-size rule in metrics; tune on val
 - [x] Evaluate v0/v1 with and without tiles; report to the owner
-- [ ] Owner picks the next T4 step (label audit, threshold, step C)
+- [x] Owner picks the next T4 step: label audit, agent review + owner spot check (2026-11-14)
+- [x] Audit sheets, agent review of all 1,683 test/holdout plate labels, audited scores (ADR-0014)
+- [ ] Owner spot check (`data/processed/label_audit/spot_check/`), then commit `configs/audit/`
+- [ ] Owner decides on flagged labels: redraw or ignore; anonymised plates; dealer/show inserts
 
 ### Next up
 
-Waiting for the owner: best so far is v1 + 2×2 tiles (`runs/yolox_tiny_640_v1/eval_tiles2/report.md`). Proposed next step: an unbiased audit of test/holdout plate labels.
+Waiting for the owner's spot check of 50 audit decisions (`data/processed/label_audit/spot_check/spot_check_{1,2}.jpg`, answers in `spot_check.csv`). Then commit `configs/audit/` and take the owner's decision on flagged labels.
 
 ### Open owner decisions
 
@@ -132,3 +135,4 @@ Waiting for the owner: best so far is v1 + 2×2 tiles (`runs/yolox_tiny_640_v1/e
 - 2026-11-13: T4 started on `t4-small-plates` (owner: keep 640, small plates first; one photo at a time; ignore unreadable plates; run step B). T3 merged to `main`. ADR-0013. Training labels `data/processed/yolox_640_v1` keep plates ≥ 12 px wide (117 dropped vs 652 in v0). `make lint` clean, `make test` 75 passed. v1 training started.
 - 2026-11-13: Step A built on `t4-small-plates`: `detect_tiled` in `postprocess.py`, ignore rule for plates under 12 px in metrics, `make eval TILES=N SPLITS=…`; `make test` 80 passed. Val, v0 model: plate recall 0.882 → 0.920 with 2×2 tiles (3×3: 0.929), small plates 0.580 → 0.771 (0.776), plate FP/image 0.14 → 0.35. Chose 2×2 (ADR-0013). The v0 `eval/` report now holds val only; test/holdout are rerun in the final comparison. v1 training at epoch 3, ETA ~13:00 on 2026-11-14.
 - 2026-11-14: v1 finished (~13 h, checkpoint 48086beb…, ONNX matches PyTorch). Test (readable plates, ADR-0013): v0 0.892 / small 0.674; v0+2×2 tiles 0.926 / 0.822; v1 0.891 / 0.682; v1+tiles 0.933 / 0.841 (targets 0.95 / 0.85), plate FP/image 0.43, vehicles 0.741. Holdout v1+tiles 0.886, small 0.567. Val agrees (v1+tiles best: 0.933 / 0.796). Of 90 remaining test plate misses, 57 have a confident box with IoU 0.1–0.5 (gallery: mostly loose or offset labels), 18 are below 0.2, 15 not found. A first evaluation chain failed on a shell word-splitting bug (my script); rerun fine.
+- 2026-11-14: Label audit (ADR-0014). 5 reviewer agents, model-blind, all 1,683 readable test/holdout plate labels: test 1,283 ok / 27 loose / 40 not_plate; holdout 311 / 2 / 20. Not_plate is mostly deliberately blanked plates (Open Images anonymisation) and dealer/show inserts. I re-checked 2 random all-ok CCPD sheets (40 boxes, all ok). Audited v1 + 2×2 tiles: test plate recall 0.947 (0.95), small 0.849 (0.85), holdout 0.900. Fixed a missing report field found when re-scoring; `make test` 85 passed.

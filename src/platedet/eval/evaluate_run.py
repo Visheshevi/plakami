@@ -231,6 +231,7 @@ def evaluate_run(
         "git": _git_state(),
         "tiles": None if tiles == 1 else {"grid": tiles, "overlap": overlap},
         "min_plate_width": READABLE_PLATE_WIDTH,
+        "audit_flagged": {split: len(ids) for split, ids in audit.items()},
         "model_sha256": sha256_file(model_path) if model_path.is_file() else None,
         "manifest_sha256": {
             str(dataset_dir): sha256_file(dataset_dir / "manifest.csv"),

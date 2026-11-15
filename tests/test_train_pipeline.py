@@ -167,6 +167,18 @@ def test_target_rows_and_report(tmp_path):
     assert "| Plate recall @0.2 on test | 0.960 | >= 0.95 | yes |" in report
     assert "`images/x.jpg`" in report
 
+    # With the readable-size rule and a label audit, both extra columns appear.
+    summary |= {
+        "min_plate_width": 12.0,
+        "targets_all_plates": list(rows.values()),
+        "targets_audited": list(rows.values()),
+        "audit_flagged": {"test": 3},
+    }
+    report = write_report(tmp_path, summary).read_text()
+    assert "flagged test: 3" in report
+    assert "| Metric | Value | Target | Met | All plates | Audited | Met (audited) |" in report
+    assert "| Plate recall @0.2 on test | 0.960 | >= 0.95 | yes | 0.960 | 0.960 | yes |" in report
+
 
 @pytest.fixture
 def synthetic_training_dir(tmp_path):
