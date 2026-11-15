@@ -25,6 +25,40 @@ htmlcov/
 *.tflite
 events.out.tfevents.*
 
+# Images anywhere in the repo (datasets, galleries, review sheets, screenshots).
+# Images live only under data/ and runs/, which are ignored above; this is a safety net.
+*.jpg
+*.jpeg
+*.JPG
+*.JPEG
+*.png
+*.PNG
+*.gif
+*.bmp
+*.tif
+*.tiff
+*.webp
+*.heic
+*.HEIC
+*.avif
+
+# Other large or generated binaries: arrays, model formats, archives
+*.npy
+*.npz
+*.parquet
+*.h5
+*.pb
+*.safetensors
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.7z
+saved_model/
+
+# Logs
+*.log
+
 # Editors and operating systems
 .DS_Store
 .idea/
