@@ -65,6 +65,30 @@ With flagged labels ignored, v1 + 2×2 tiles scores:
 | Test small-plate recall | 0.849 | 0.841 | 0.85 |
 | Holdout plate recall | 0.900 | 0.886 | 0.95 |
 
+## Owner rules on flagged labels (2026-11-14)
+
+- **Blanked-out or covered plates count as plates.** This covers deliberate anonymisation (fills, blur, bars) and blank covers.
+- **Dealer, show, novelty and taxi inserts in a plate holder count as plates.**
+- **Result.** 52 `not_plate` labels were re-checked by eye for box fit:
+  - 49 became `ok`;
+  - 2 became `loose` (holdout/110, test/100);
+  - 1 stayed `not_plate` (test/1589: dark empty recess, no plate or insert visible).
+
+  Their notes record the change.
+- **Remaining `not_plate` (9):** a badge on a body panel, a car body edge, a dark tailgate recess, a bus fine notice, painted artwork, a tram sign, a bumper corner, a house-number sign, and test/1589.
+- **Final counts:**
+  - test: 1,316 ok, 28 loose, 6 not_plate;
+  - holdout: 327 ok, 3 loose, 3 not_plate.
+- **Still open:** redraw or ignore the 31 loose boxes (sheets in `data/processed/label_audit/loose/`).
+
+v1 + 2×2 tiles, audited with these rules:
+
+| Metric | Audited | Target |
+|---|---|---|
+| Test plate recall | 0.948 | 0.95 |
+| Test small-plate recall | 0.849 | 0.85 |
+| Holdout plate recall | 0.902 | 0.95 |
+
 ## Consequences
 
 - Ignoring flagged labels shrinks the denominator. Reports show the flagged count per split,

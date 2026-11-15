@@ -62,11 +62,12 @@ Bounded sample results (`MAX_IMAGES=100`): 83 usable images; 17 image URLs retur
 - [x] Owner picks the next T4 step: label audit, agent review + owner spot check (2026-11-14)
 - [x] Audit sheets, agent review of all 1,683 test/holdout plate labels, audited scores (ADR-0014)
 - [x] Owner spot check (`data/processed/label_audit/spot_check/`): 50/50 agreed (2026-11-14); `configs/audit/` committed
-- [ ] Owner decides on flagged labels: redraw or ignore; anonymised plates; dealer/show inserts
+- [x] Owner rules (2026-11-14): blanked plates and dealer/show inserts count as plates (applied, ADR-0014)
+- [ ] Owner decides: redraw or ignore the 31 loose boxes (`data/processed/label_audit/loose/`)
 
 ### Next up
 
-Waiting for the owner's rules on flagged labels: (1) anonymised plates, (2) dealer/show inserts, (3) redraw or ignore the 29 loose boxes. Then the remaining gap: test 0.947 / 0.95, small 0.849 / 0.85, holdout 0.900 / 0.95.
+Waiting for the owner: redraw or ignore the 31 loose boxes. Remaining gap (v1 + tiles, audited): test 0.948 / 0.95, small 0.849 / 0.85, holdout 0.902 / 0.95.
 
 ### Open owner decisions
 
@@ -137,3 +138,4 @@ Waiting for the owner's rules on flagged labels: (1) anonymised plates, (2) deal
 - 2026-11-14: v1 finished (~13 h, checkpoint 48086beb…, ONNX matches PyTorch). Test (readable plates, ADR-0013): v0 0.892 / small 0.674; v0+2×2 tiles 0.926 / 0.822; v1 0.891 / 0.682; v1+tiles 0.933 / 0.841 (targets 0.95 / 0.85), plate FP/image 0.43, vehicles 0.741. Holdout v1+tiles 0.886, small 0.567. Val agrees (v1+tiles best: 0.933 / 0.796). Of 90 remaining test plate misses, 57 have a confident box with IoU 0.1–0.5 (gallery: mostly loose or offset labels), 18 are below 0.2, 15 not found. A first evaluation chain failed on a shell word-splitting bug (my script); rerun fine.
 - 2026-11-14: Label audit (ADR-0014). 5 reviewer agents, model-blind, all 1,683 readable test/holdout plate labels: test 1,283 ok / 27 loose / 40 not_plate; holdout 311 / 2 / 20. Not_plate is mostly deliberately blanked plates (Open Images anonymisation) and dealer/show inserts. I re-checked 2 random all-ok CCPD sheets (40 boxes, all ok). Audited v1 + 2×2 tiles: test plate recall 0.947 (0.95), small 0.849 (0.85), holdout 0.900. Fixed a missing report field found when re-scoring; `make test` 85 passed.
 - 2026-11-14: Owner spot check of the label audit: 50/50 agreed (two comments, no changes). Committed `configs/audit/plate_labels.csv` and meta (IDs and decisions only).
+- 2026-11-14: Owner rules: blanked plates and dealer/show inserts count as plates. Of 52 such labels, 49 became ok, 2 loose, 1 kept not_plate (checked by eye). Audit now: test 1,316 / 28 / 6, holdout 327 / 3 / 3. Audited v1 + tiles: test 0.948, small 0.849, holdout 0.902. Loose-box sheets for the owner in `data/processed/label_audit/loose/`.

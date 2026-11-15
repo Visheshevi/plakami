@@ -18,7 +18,7 @@ holdout/16,ok,
 holdout/17,ok,
 holdout/18,ok,
 holdout/19,ok,
-holdout/20,not_plate,"blank body-colour plate cover, no characters"
+holdout/20,ok,"counts as plate (owner rule 2026-11-14); was not_plate: blank body-colour plate cover, no characters"
 holdout/21,ok,
 holdout/22,ok,
 holdout/23,ok,
@@ -70,10 +70,10 @@ holdout/71,ok,
 holdout/72,ok,
 holdout/73,ok,
 holdout/74,ok,
-holdout/75,not_plate,plate characters blanked out (anonymised white fill)
-holdout/76,not_plate,plate characters blanked out (anonymised white fill)
-holdout/77,not_plate,plate characters blanked out (anonymised grey fill)
-holdout/78,not_plate,plate characters blanked out (anonymised white fill)
+holdout/75,ok,counts as plate (owner rule 2026-11-14); was not_plate: plate characters blanked out (anonymised white fill)
+holdout/76,ok,counts as plate (owner rule 2026-11-14); was not_plate: plate characters blanked out (anonymised white fill)
+holdout/77,ok,counts as plate (owner rule 2026-11-14); was not_plate: plate characters blanked out (anonymised grey fill)
+holdout/78,ok,counts as plate (owner rule 2026-11-14); was not_plate: plate characters blanked out (anonymised white fill)
 holdout/79,ok,
 holdout/80,ok,
 holdout/81,ok,
@@ -90,7 +90,7 @@ holdout/91,ok,
 holdout/92,ok,
 holdout/93,ok,
 holdout/94,ok,
-holdout/95,not_plate,"plate area flat grey fill, only frame text (blurred out)"
+holdout/95,ok,"counts as plate (owner rule 2026-11-14); was not_plate: plate area flat grey fill, only frame text (blurred out)"
 holdout/96,ok,
 holdout/97,ok,
 holdout/98,ok,
@@ -102,10 +102,10 @@ holdout/103,ok,
 holdout/104,ok,
 holdout/105,ok,
 holdout/106,ok,
-holdout/107,not_plate,plate characters blanked out (anonymised white fill)
+holdout/107,ok,counts as plate (owner rule 2026-11-14); was not_plate: plate characters blanked out (anonymised white fill)
 holdout/108,ok,
 holdout/109,ok,
-holdout/110,not_plate,"flat grey blanked plate area, no characters"
+holdout/110,loose,"counts as plate (owner rule 2026-11-14); was not_plate: flat grey blanked plate area, no characters"
 holdout/111,ok,
 holdout/112,ok,
 holdout/113,ok,
@@ -137,7 +137,7 @@ holdout/139,ok,
 holdout/140,ok,
 holdout/141,ok,
 holdout/142,ok,
-holdout/143,not_plate,plate characters blanked out (anonymised grey fill)
+holdout/143,ok,counts as plate (owner rule 2026-11-14); was not_plate: plate characters blanked out (anonymised grey fill)
 holdout/144,ok,
 holdout/145,ok,
 holdout/146,ok,
@@ -153,7 +153,7 @@ holdout/155,ok,
 holdout/156,ok,
 holdout/157,ok,
 holdout/158,ok,
-holdout/159,not_plate,"plate deliberately blurred out, no characters"
+holdout/159,ok,"counts as plate (owner rule 2026-11-14); was not_plate: plate deliberately blurred out, no characters"
 holdout/160,ok,
 holdout/164,ok,
 holdout/165,ok,
@@ -164,7 +164,7 @@ holdout/169,ok,
 holdout/170,ok,
 holdout/171,ok,
 holdout/172,ok,
-holdout/173,not_plate,"flat grey blanked plate area, no characters"
+holdout/173,ok,"counts as plate (owner rule 2026-11-14); was not_plate: flat grey blanked plate area, no characters"
 holdout/174,loose,"box on grille above plate, misses most of plate"
 holdout/176,ok,
 holdout/177,ok,
@@ -188,7 +188,7 @@ holdout/195,ok,
 holdout/196,ok,
 holdout/197,ok,
 holdout/199,ok,characters smudged but plate and frame visible
-holdout/200,not_plate,plate area filled with grey noise (blanked out)
+holdout/200,ok,counts as plate (owner rule 2026-11-14); was not_plate: plate area filled with grey noise (blanked out)
 holdout/201,ok,
 holdout/202,ok,
 holdout/203,ok,
@@ -241,9 +241,9 @@ holdout/266,ok,
 holdout/267,ok,
 holdout/268,ok,
 holdout/269,ok,
-holdout/270,not_plate,plate characters blanked out (white fill; frame only)
+holdout/270,ok,counts as plate (owner rule 2026-11-14); was not_plate: plate characters blanked out (white fill; frame only)
 holdout/271,ok,
-holdout/272,not_plate,plate characters covered by black bar
+holdout/272,ok,counts as plate (owner rule 2026-11-14); was not_plate: plate characters covered by black bar
 holdout/273,ok,
 holdout/274,ok,
 holdout/276,ok,
@@ -286,7 +286,7 @@ holdout/312,ok,
 holdout/313,ok,
 holdout/314,ok,
 holdout/315,ok,
-holdout/316,not_plate,"flat grey blanked plate area, no characters"
+holdout/316,ok,"counts as plate (owner rule 2026-11-14); was not_plate: flat grey blanked plate area, no characters"
 holdout/317,ok,
 holdout/318,ok,
 holdout/319,ok,
@@ -307,11 +307,11 @@ holdout/334,ok,
 holdout/335,ok,
 holdout/337,ok,
 holdout/338,ok,
-holdout/339,not_plate,plate area filled with grey noise (blanked out)
+holdout/339,ok,counts as plate (owner rule 2026-11-14); was not_plate: plate area filled with grey noise (blanked out)
 holdout/340,ok,
 holdout/341,ok,
 holdout/342,ok,
-holdout/343,not_plate,plate characters blurred out (header/graphics only)
+holdout/343,ok,counts as plate (owner rule 2026-11-14); was not_plate: plate characters blurred out (header/graphics only)
 holdout/344,ok,
 holdout/345,ok,
 holdout/346,ok,
@@ -358,7 +358,7 @@ test/23,ok,
 test/24,ok,
 test/25,ok,
 test/26,ok,
-test/27,not_plate,"TAXI sign in plate position, no registration (unsure)"
+test/27,ok,"counts as plate (owner rule 2026-11-14); was not_plate: TAXI sign in plate position, no registration (unsure)"
 test/28,ok,
 test/29,ok,
 test/31,ok,
@@ -368,7 +368,7 @@ test/39,ok,
 test/43,ok,
 test/45,ok,
 test/46,ok,
-test/54,not_plate,"dealer insert/blank plate, no characters"
+test/54,ok,"counts as plate (owner rule 2026-11-14); was not_plate: dealer insert/blank plate, no characters"
 test/55,ok,
 test/57,ok,
 test/62,ok,
@@ -382,7 +382,7 @@ test/86,ok,
 test/87,ok,
 test/94,ok,
 test/95,loose,"box shifted down, ~40% bumper"
-test/100,not_plate,"dealer advert insert, box covers half"
+test/100,loose,"counts as plate (owner rule 2026-11-14); was not_plate: dealer advert insert, box covers half"
 test/103,ok,
 test/107,ok,
 test/108,ok,
@@ -432,7 +432,7 @@ test/273,ok,
 test/274,ok,
 test/275,ok,
 test/276,ok,
-test/283,not_plate,"smart dealer insert, no registration"
+test/283,ok,"counts as plate (owner rule 2026-11-14); was not_plate: smart dealer insert, no registration"
 test/284,ok,
 test/285,ok,
 test/286,ok,
@@ -449,10 +449,10 @@ test/314,ok,
 test/320,ok,
 test/326,ok,
 test/327,ok,
-test/329,not_plate,"SUBARU badge plate, no registration"
+test/329,ok,"counts as plate (owner rule 2026-11-14); was not_plate: SUBARU badge plate, no registration"
 test/330,ok,
 test/331,ok,
-test/335,not_plate,"BMW i3 Concept show placard, no registration"
+test/335,ok,"counts as plate (owner rule 2026-11-14); was not_plate: BMW i3 Concept show placard, no registration"
 test/337,ok,
 test/341,loose,"box ~4x plate, includes boot and bumper"
 test/343,ok,
@@ -553,12 +553,12 @@ test/621,ok,
 test/627,ok,
 test/628,ok,
 test/631,ok,
-test/632,not_plate,"plate characters erased (anonymised), only frame/city text (unsure)"
+test/632,ok,"counts as plate (owner rule 2026-11-14); was not_plate: plate characters erased (anonymised), only frame/city text (unsure)"
 test/645,ok,
 test/647,ok,
 test/648,ok,
 test/657,ok,
-test/658,not_plate,"plate characters whited out (anonymised), EU band visible (unsure)"
+test/658,ok,"counts as plate (owner rule 2026-11-14); was not_plate: plate characters whited out (anonymised), EU band visible (unsure)"
 test/659,loose,"box shifted up over door handle, misses most of plate"
 test/660,ok,
 test/663,ok,
@@ -569,7 +569,7 @@ test/674,ok,
 test/675,ok,
 test/678,ok,
 test/689,ok,
-test/694,not_plate,"plain white anonymisation patch, no plate visible"
+test/694,ok,"counts as plate (owner rule 2026-11-14); was not_plate: plain white anonymisation patch, no plate visible"
 test/695,ok,
 test/698,ok,
 test/701,ok,
@@ -592,7 +592,7 @@ test/745,ok,
 test/754,ok,
 test/760,ok,
 test/762,loose,"box shifted up-left over trim, cuts plate right edge"
-test/768,not_plate,grey anonymisation patch covers plate (only EU band sliver)
+test/768,ok,counts as plate (owner rule 2026-11-14); was not_plate: grey anonymisation patch covers plate (only EU band sliver)
 test/770,ok,
 test/771,ok,
 test/773,ok,
@@ -608,7 +608,7 @@ test/812,ok,
 test/813,ok,
 test/824,ok,
 test/830,ok,
-test/834,not_plate,"PRIOR DESIGN tuner/dealer plate, no registration"
+test/834,ok,"counts as plate (owner rule 2026-11-14); was not_plate: PRIOR DESIGN tuner/dealer plate, no registration"
 test/836,ok,
 test/837,ok,
 test/840,ok,
@@ -625,8 +625,8 @@ test/865,ok,
 test/872,ok,
 test/874,ok,
 test/876,ok,
-test/887,not_plate,"solid yellow patch (anonymised), no plate detail"
-test/889,not_plate,"i40 dealer/show plate, no registration"
+test/887,ok,"counts as plate (owner rule 2026-11-14); was not_plate: solid yellow patch (anonymised), no plate detail"
+test/889,ok,"counts as plate (owner rule 2026-11-14); was not_plate: i40 dealer/show plate, no registration"
 test/892,loose,"box misses ~30% of plate width (left), extends below"
 test/898,ok,
 test/899,ok,
@@ -655,9 +655,9 @@ test/936,ok,
 test/937,ok,
 test/941,ok,
 test/942,ok,
-test/954,not_plate,grey anonymisation patch fully covers plate
+test/954,ok,counts as plate (owner rule 2026-11-14); was not_plate: grey anonymisation patch fully covers plate
 test/961,ok,
-test/969,not_plate,"white anonymisation patch, only holder frame visible"
+test/969,ok,"counts as plate (owner rule 2026-11-14); was not_plate: white anonymisation patch, only holder frame visible"
 test/974,ok,
 test/979,ok,
 test/981,ok,
@@ -688,7 +688,7 @@ test/1067,ok,
 test/1072,ok,
 test/1076,ok,
 test/1078,ok,
-test/1085,not_plate,"dealer show plate ""BMW 125i"", no registration"
+test/1085,ok,"counts as plate (owner rule 2026-11-14); was not_plate: dealer show plate ""BMW 125i"", no registration"
 test/1088,ok,
 test/1091,ok,
 test/1099,ok,
@@ -708,7 +708,7 @@ test/1140,ok,
 test/1148,ok,
 test/1149,ok,
 test/1152,ok,
-test/1155,not_plate,"blank dealer plate, no characters"
+test/1155,ok,"counts as plate (owner rule 2026-11-14); was not_plate: blank dealer plate, no characters"
 test/1162,ok,
 test/1164,ok,plate dark/barely visible
 test/1165,ok,
@@ -763,7 +763,7 @@ test/1317,ok,
 test/1320,ok,
 test/1321,ok,
 test/1328,ok,
-test/1331,not_plate,"dealer placard/sign (""...NUM ...ard""), not a plate"
+test/1331,ok,"counts as plate (owner rule 2026-11-14); was not_plate: dealer placard/sign (""...NUM ...ard""), not a plate"
 test/1333,ok,
 test/1334,ok,box slightly short on left
 test/1341,ok,
@@ -834,10 +834,10 @@ test/1607,ok,
 test/1608,ok,
 test/1612,ok,
 test/1613,ok,
-test/1615,not_plate,"dealer advert insert ""autocenter.fi"", no registration"
+test/1615,ok,"counts as plate (owner rule 2026-11-14); was not_plate: dealer advert insert ""autocenter.fi"", no registration"
 test/1617,ok,
 test/1618,ok,
-test/1620,not_plate,"yellow plate area fully blank/blurred out, no characters"
+test/1620,ok,"counts as plate (owner rule 2026-11-14); was not_plate: yellow plate area fully blank/blurred out, no characters"
 test/1623,ok,
 test/1624,ok,
 test/1630,ok,
@@ -849,11 +849,11 @@ test/1644,ok,
 test/1645,ok,
 test/1651,ok,
 test/1652,ok,partly occluded; box a bit tall
-test/1662,not_plate,"dealer model plate ""Octavia 明锐"", no registration"
+test/1662,ok,"counts as plate (owner rule 2026-11-14); was not_plate: dealer model plate ""Octavia 明锐"", no registration"
 test/1664,ok,
 test/1665,ok,
 test/1667,ok,
-test/1672,not_plate,"novelty placard ""BMW James Bond 007"", no registration"
+test/1672,ok,"counts as plate (owner rule 2026-11-14); was not_plate: novelty placard ""BMW James Bond 007"", no registration"
 test/1681,ok,
 test/1682,ok,"dark IR image, plate barely visible"
 test/1683,ok,
@@ -918,7 +918,7 @@ test/1882,ok,
 test/1891,ok,
 test/1892,ok,
 test/1897,ok,
-test/1906,not_plate,"fully blank white plate, no characters"
+test/1906,ok,"counts as plate (owner rule 2026-11-14); was not_plate: fully blank white plate, no characters"
 test/1910,ok,
 test/1911,ok,
 test/1912,ok,
@@ -956,7 +956,7 @@ test/2051,ok,
 test/2055,ok,
 test/2057,ok,
 test/2061,ok,
-test/2069,not_plate,"dealer plate ""Rick Case Hyundai"", no registration"
+test/2069,ok,"counts as plate (owner rule 2026-11-14); was not_plate: dealer plate ""Rick Case Hyundai"", no registration"
 test/2073,ok,
 test/2077,ok,
 test/2083,ok,
@@ -971,7 +971,7 @@ test/2109,ok,
 test/2110,ok,
 test/2116,ok,
 test/2118,ok,
-test/2122,not_plate,"show placard ""PGACa..."", no registration"
+test/2122,ok,"counts as plate (owner rule 2026-11-14); was not_plate: show placard ""PGACa..."", no registration"
 test/2124,ok,
 test/2125,ok,
 test/2126,ok,
@@ -1038,7 +1038,7 @@ test/2370,ok,
 test/2374,ok,
 test/2380,ok,
 test/2381,ok,
-test/2386,not_plate,blank white plate (anonymised)
+test/2386,ok,counts as plate (owner rule 2026-11-14); was not_plate: blank white plate (anonymised)
 test/2387,ok,
 test/2388,ok,
 test/2390,ok,
@@ -1065,7 +1065,7 @@ test/2442,ok,
 test/2446,ok,
 test/2461,ok,
 test/2463,ok,
-test/2466,not_plate,"RS4 show plate, not a registration plate"
+test/2466,ok,"counts as plate (owner rule 2026-11-14); was not_plate: RS4 show plate, not a registration plate"
 test/2468,ok,
 test/2469,ok,
 test/2470,ok,
@@ -1087,7 +1087,7 @@ test/2518,ok,
 test/2521,ok,
 test/2522,ok,
 test/2523,ok,
-test/2530,not_plate,blank white plate (anonymised)
+test/2530,ok,counts as plate (owner rule 2026-11-14); was not_plate: blank white plate (anonymised)
 test/2537,ok,
 test/2538,ok,
 test/2545,ok,
@@ -1111,8 +1111,8 @@ test/2613,ok,
 test/2623,ok,
 test/2630,ok,
 test/2637,ok,
-test/2638,not_plate,grey-filled plate (anonymised)
-test/2639,not_plate,grey-filled plate (anonymised)
+test/2638,ok,counts as plate (owner rule 2026-11-14); was not_plate: grey-filled plate (anonymised)
+test/2639,ok,counts as plate (owner rule 2026-11-14); was not_plate: grey-filled plate (anonymised)
 test/2640,ok,
 test/2642,ok,
 test/2644,ok,
@@ -1127,7 +1127,7 @@ test/2666,ok,
 test/2667,ok,partly occluded by window pillar
 test/2670,ok,
 test/2671,ok,
-test/2678,not_plate,grey-filled plate (anonymised)
+test/2678,ok,counts as plate (owner rule 2026-11-14); was not_plate: grey-filled plate (anonymised)
 test/2679,loose,"box shifted down, extends well below plate"
 test/2681,ok,
 test/2682,ok,
@@ -1173,7 +1173,7 @@ test/2840,ok,
 test/2849,ok,
 test/2852,not_plate,illuminated house number sign
 test/2853,ok,
-test/2863,not_plate,"dealer placard in holder, no plate"
+test/2863,ok,"counts as plate (owner rule 2026-11-14); was not_plate: dealer placard in holder, no plate"
 test/2865,ok,
 test/2871,ok,
 test/2883,ok,
@@ -1203,7 +1203,7 @@ test/2967,ok,
 test/2970,ok,
 test/2974,ok,
 test/2977,ok,
-test/2981,not_plate,"dealer sign in plate holder, no plate"
+test/2981,ok,"counts as plate (owner rule 2026-11-14); was not_plate: dealer sign in plate holder, no plate"
 test/2987,ok,
 test/3007,ok,
 test/3008,ok,
@@ -1233,7 +1233,7 @@ test/3065,ok,"illegible, possibly privacy-blurred"
 test/3066,ok,"illegible, possibly privacy-blurred"
 test/3067,ok,"illegible, possibly privacy-blurred"
 test/3072,ok,
-test/3085,not_plate,"Giulietta show plate, not a registration plate"
+test/3085,ok,"counts as plate (owner rule 2026-11-14); was not_plate: Giulietta show plate, not a registration plate"
 test/3086,ok,
 test/3087,ok,
 test/3088,ok,
