@@ -7,7 +7,12 @@ decisions don't depend on whether the model found the plate.
 Each box gets one decision:
   ok         the box fits a real plate,
   loose      a real plate, but the box is clearly too big, too small or shifted,
-  not_plate  no readable plate in the box (empty holder, sign, blank or covered area).
+  not_plate  no readable plate in the box (empty holder, sign, blank or covered area),
+  fixed      the box was redrawn on the owner's request (ADR-0014).
+
+Redrawn boxes are labels, so they stay with the dataset in `data/` (`corrections.json`,
+never committed); `make audit-corrections` checks them against the `fixed` decisions and
+records the file's hash in the committed meta file.
 
 `finalize` checks the filled sheet covers every box exactly once and writes the committed
 decisions file (`configs/audit/plate_labels.csv`: box IDs, decisions and notes only, no
@@ -30,12 +35,13 @@ from platedet.eval.baseline import sha256_file
 from platedet.eval.metrics import PLATE, READABLE_PLATE_WIDTH
 
 LOGGER = logging.getLogger("platedet.eval")
-DECISIONS = ("ok", "loose", "not_plate")
+DECISIONS = ("ok", "loose", "not_plate", "fixed")
 FLAGGED = frozenset({"loose", "not_plate"})
 SPLITS = {"test": Path("data/processed/combined"), "holdout": Path("data/processed/holdout")}
 AUDIT_DIR = Path("data/processed/label_audit")
 DECISIONS_PATH = Path("configs/audit/plate_labels.csv")
 META_PATH = Path("configs/audit/plate_labels.meta.json")
+CORRECTIONS_PATH = AUDIT_DIR / "corrections.json"
 TEMPLATE_FIELDS = ("box_id", "sheet", "number", "width_px", "decision", "note")
 TILE_W, TILE_H, COLUMNS, PER_SHEET = 360, 270, 4, 20
 
@@ -168,6 +174,11 @@ def finalize(
         for key in sorted(decisions, key=lambda k: (k.split("/")[0], int(k.split("/")[1]))):
             writer.writerow((key, *decisions[key]))
     meta = {"annotations_sha256": _hashes(splits), "readable_plate_width": READABLE_PLATE_WIDTH}
+    if meta_path.is_file():
+        # Keep the hash of earlier box corrections; `record_corrections` re-checks them.
+        previous = json.loads(meta_path.read_text(encoding="utf-8"))
+        if "corrections_sha256" in previous:
+            meta["corrections_sha256"] = previous["corrections_sha256"]
     meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
     counts = Counter(decision for decision, _ in decisions.values())
     LOGGER.info("Audit decisions written to %s: %s", decisions_path, dict(counts))
@@ -199,18 +210,75 @@ def flagged_annotation_ids(
     )
 
 
+def _read_corrections(path: Path) -> dict[str, list[float]]:
+    boxes = json.loads(path.read_text(encoding="utf-8"))["boxes"]
+    for key, box in boxes.items():
+        if len(box) != 4 or not (box[0] < box[2] and box[1] < box[3]):
+            raise ValueError(f"Correction for {key} is not an x1, y1, x2, y2 box: {box}")
+    return boxes
+
+
+def _fixed_ids(decisions_path: Path) -> set[str]:
+    return {k for k, (d, _) in read_decisions(decisions_path).items() if d == "fixed"}
+
+
+def record_corrections(
+    corrections_path: Path = CORRECTIONS_PATH,
+    decisions_path: Path = DECISIONS_PATH,
+    meta_path: Path = META_PATH,
+) -> int:
+    """Check corrections match the `fixed` decisions one to one; store their hash in meta."""
+    boxes = _read_corrections(corrections_path)
+    fixed = _fixed_ids(decisions_path)
+    if set(boxes) != fixed:
+        raise ValueError(f"Corrections don't match 'fixed' decisions: {sorted(set(boxes) ^ fixed)}")
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["corrections_sha256"] = sha256_file(corrections_path)
+    meta_path.write_text(json.dumps(meta, indent=2) + "\n", encoding="utf-8")
+    return len(boxes)
+
+
+def corrected_boxes(
+    split: str,
+    decisions_path: Path = DECISIONS_PATH,
+    meta_path: Path = META_PATH,
+    corrections_path: Path = CORRECTIONS_PATH,
+) -> dict[int, tuple[float, float, float, float]]:
+    """Redrawn boxes for `split` by annotation ID (empty if nothing was fixed).
+
+    Refuses a corrections file that differs from the one recorded in the meta file.
+    """
+    if not decisions_path.is_file() or not _fixed_ids(decisions_path):
+        return {}
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    if not corrections_path.is_file():
+        raise FileNotFoundError(f"Label audit has fixed boxes but {corrections_path} is missing")
+    if sha256_file(corrections_path) != meta.get("corrections_sha256"):
+        raise ValueError(
+            f"{corrections_path} differs from the recorded one; rerun audit-corrections"
+        )
+    return {
+        int(key.split("/")[1]): tuple(float(v) for v in box)  # type: ignore[misc]
+        for key, box in _read_corrections(corrections_path).items()
+        if key.split("/")[0] == split
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("prepare")
     final = sub.add_parser("finalize")
     final.add_argument("--review", type=Path, default=AUDIT_DIR / "review.csv")
+    sub.add_parser("corrections")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     if args.command == "prepare":
         prepare()
-    else:
+    elif args.command == "finalize":
         finalize(args.review)
+    else:
+        LOGGER.info("Recorded %d box corrections", record_corrections())
 
 
 if __name__ == "__main__":

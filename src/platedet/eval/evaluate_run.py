@@ -29,7 +29,7 @@ from platedet.eval.baseline import (
     evaluate,
     sha256_file,
 )
-from platedet.eval.label_audit import flagged_annotation_ids
+from platedet.eval.label_audit import corrected_boxes, flagged_annotation_ids
 from platedet.eval.metrics import READABLE_PLATE_WIDTH
 from platedet.postprocess import DEFAULT_TILE_OVERLAP, Detection
 
@@ -98,9 +98,14 @@ def write_report(run_dir: Path, summary: dict[str, Any], out_dir: Path | None = 
         header += " All plates |"
     if audited_rows:
         flagged = ", ".join(f"{s}: {n}" for s, n in summary["audit_flagged"].items())
+        corrected = (
+            ", ".join(f"{s}: {n}" for s, n in (summary.get("audit_corrected") or {}).items())
+            or "none"
+        )
         lines += [
             "*Audited* also ignores labels the plate label audit flagged as loose or "
-            f"not a plate (ADR-0014; flagged {flagged}).",
+            f"not a plate and uses redrawn boxes (ADR-0014; flagged {flagged}; "
+            f"redrawn {corrected}).",
             "",
         ]
         header += " Audited | Met (audited) |"
@@ -209,6 +214,7 @@ def evaluate_run(
     }
     if audit:
         config["audit_ignored_ids"] = audit
+        config["audit_corrections"] = {split: corrected_boxes(split) for split in audit}
     out_dir = run_dir / ("eval" if tiles == 1 else f"eval_tiles{tiles}")
     if rescore:
         predictor = SavedPredictor(out_dir, split_dirs)
@@ -232,6 +238,7 @@ def evaluate_run(
         "tiles": None if tiles == 1 else {"grid": tiles, "overlap": overlap},
         "min_plate_width": READABLE_PLATE_WIDTH,
         "audit_flagged": {split: len(ids) for split, ids in audit.items()},
+        "audit_corrected": {s: len(b) for s, b in (config.get("audit_corrections") or {}).items()},
         "model_sha256": sha256_file(model_path) if model_path.is_file() else None,
         "manifest_sha256": {
             str(dataset_dir): sha256_file(dataset_dir / "manifest.csv"),

@@ -1,4 +1,4 @@
-.PHONY: audit-prepare audit-finalize pseudo-labels train-data train export eval colab-bundle setup data data-combine holdout-prepare holdout-finalize baseline test lint
+.PHONY: audit-prepare audit-finalize audit-corrections pseudo-labels train-data train export eval colab-bundle setup data data-combine holdout-prepare holdout-finalize baseline test lint
 
 DATA_CONFIG ?= configs/data/open_images.yaml
 
@@ -20,6 +20,9 @@ audit-prepare:
 
 audit-finalize:
 	PYTHONPATH=src uv run --locked python -m platedet.eval.label_audit finalize
+
+audit-corrections:
+	PYTHONPATH=src uv run --locked python -m platedet.eval.label_audit corrections
 
 holdout-finalize:
 	PYTHONPATH=src uv run --locked python -m platedet.data.holdout finalize --config configs/holdout/open_images_curated.yaml

@@ -105,7 +105,7 @@ holdout/106,ok,
 holdout/107,ok,counts as plate (owner rule 2026-11-14); was not_plate: plate characters blanked out (anonymised white fill)
 holdout/108,ok,
 holdout/109,ok,
-holdout/110,loose,"counts as plate (owner rule 2026-11-14); was not_plate: flat grey blanked plate area, no characters"
+holdout/110,ok,"loose box accepted by owner 2026-11-14; was: counts as plate (owner rule 2026-11-14); was not_plate: flat grey blanked plate area, no characters"
 holdout/111,ok,
 holdout/112,ok,
 holdout/113,ok,
@@ -165,7 +165,7 @@ holdout/170,ok,
 holdout/171,ok,
 holdout/172,ok,
 holdout/173,ok,"counts as plate (owner rule 2026-11-14); was not_plate: flat grey blanked plate area, no characters"
-holdout/174,loose,"box on grille above plate, misses most of plate"
+holdout/174,fixed,"box redrawn on owner request 2026-11-14; was: box on grille above plate, misses most of plate"
 holdout/176,ok,
 holdout/177,ok,
 holdout/178,ok,
@@ -281,7 +281,7 @@ holdout/307,ok,
 holdout/308,ok,
 holdout/309,ok,
 holdout/310,ok,
-holdout/311,loose,"box on bumper corner left of plate, misses plate"
+holdout/311,fixed,"box redrawn on owner request 2026-11-14; was: box on bumper corner left of plate, misses plate"
 holdout/312,ok,
 holdout/313,ok,
 holdout/314,ok,
@@ -347,7 +347,7 @@ test/12,ok,
 test/13,ok,
 test/14,ok,
 test/15,ok,
-test/16,loose,"box ~3x plate, includes bumper"
+test/16,ok,"loose box accepted by owner 2026-11-14; was: box ~3x plate, includes bumper"
 test/17,ok,
 test/18,ok,
 test/19,ok,
@@ -381,8 +381,8 @@ test/85,ok,
 test/86,ok,
 test/87,ok,
 test/94,ok,
-test/95,loose,"box shifted down, ~40% bumper"
-test/100,loose,"counts as plate (owner rule 2026-11-14); was not_plate: dealer advert insert, box covers half"
+test/95,ok,"loose box accepted by owner 2026-11-14; was: box shifted down, ~40% bumper"
+test/100,fixed,"box redrawn on owner request 2026-11-14; was: counts as plate (owner rule 2026-11-14); was not_plate: dealer advert insert, box covers half"
 test/103,ok,
 test/107,ok,
 test/108,ok,
@@ -419,7 +419,7 @@ test/222,ok,
 test/223,ok,
 test/236,ok,
 test/239,ok,
-test/240,loose,thin box covers only top half of plate
+test/240,ok,loose box accepted by owner 2026-11-14; was: thin box covers only top half of plate
 test/243,ok,
 test/244,ok,
 test/257,ok,
@@ -441,7 +441,7 @@ test/295,ok,
 test/297,ok,
 test/303,ok,
 test/304,ok,
-test/305,loose,"box ~2x plate height, extends below plate"
+test/305,ok,"loose box accepted by owner 2026-11-14; was: box ~2x plate height, extends below plate"
 test/307,ok,
 test/311,ok,
 test/312,ok,
@@ -454,7 +454,7 @@ test/330,ok,
 test/331,ok,
 test/335,ok,"counts as plate (owner rule 2026-11-14); was not_plate: BMW i3 Concept show placard, no registration"
 test/337,ok,
-test/341,loose,"box ~4x plate, includes boot and bumper"
+test/341,ok,"loose box accepted by owner 2026-11-14; was: box ~4x plate, includes boot and bumper"
 test/343,ok,
 test/345,ok,
 test/346,ok,
@@ -514,7 +514,7 @@ test/520,ok,
 test/521,ok,
 test/525,ok,
 test/526,ok,
-test/528,loose,"box covers middle only, misses plate sides (dark, unsure)"
+test/528,ok,"loose box accepted by owner 2026-11-14; was: box covers middle only, misses plate sides (dark, unsure)"
 test/529,ok,
 test/530,ok,
 test/531,ok,
@@ -529,7 +529,7 @@ test/550,ok,
 test/551,ok,
 test/552,ok,
 test/557,ok,
-test/558,loose,"box ~2x plate height, extends below plate"
+test/558,ok,"loose box accepted by owner 2026-11-14; was: box ~2x plate height, extends below plate"
 test/559,ok,
 test/567,ok,
 test/569,ok,
@@ -541,7 +541,7 @@ test/583,ok,
 test/591,ok,
 test/592,ok,
 test/593,ok,
-test/597,loose,"narrow box on plate centre, misses ~half width, extends below"
+test/597,ok,"loose box accepted by owner 2026-11-14; was: narrow box on plate centre, misses ~half width, extends below"
 test/600,ok,
 test/601,ok,
 test/606,ok,
@@ -559,7 +559,7 @@ test/647,ok,
 test/648,ok,
 test/657,ok,
 test/658,ok,"counts as plate (owner rule 2026-11-14); was not_plate: plate characters whited out (anonymised), EU band visible (unsure)"
-test/659,loose,"box shifted up over door handle, misses most of plate"
+test/659,ok,"loose box accepted by owner 2026-11-14; was: box shifted up over door handle, misses most of plate"
 test/660,ok,
 test/663,ok,
 test/664,ok,
@@ -591,7 +591,7 @@ test/744,ok,
 test/745,ok,
 test/754,ok,
 test/760,ok,
-test/762,loose,"box shifted up-left over trim, cuts plate right edge"
+test/762,ok,"loose box accepted by owner 2026-11-14; was: box shifted up-left over trim, cuts plate right edge"
 test/768,ok,counts as plate (owner rule 2026-11-14); was not_plate: grey anonymisation patch covers plate (only EU band sliver)
 test/770,ok,
 test/771,ok,
@@ -627,7 +627,7 @@ test/874,ok,
 test/876,ok,
 test/887,ok,"counts as plate (owner rule 2026-11-14); was not_plate: solid yellow patch (anonymised), no plate detail"
 test/889,ok,"counts as plate (owner rule 2026-11-14); was not_plate: i40 dealer/show plate, no registration"
-test/892,loose,"box misses ~30% of plate width (left), extends below"
+test/892,ok,"loose box accepted by owner 2026-11-14; was: box misses ~30% of plate width (left), extends below"
 test/898,ok,
 test/899,ok,
 test/900,ok,
@@ -640,12 +640,12 @@ test/908,ok,
 test/909,ok,
 test/912,ok,
 test/913,ok,
-test/914,loose,"box shifted up over tailgate, cuts plate right end"
+test/914,ok,"loose box accepted by owner 2026-11-14; was: box shifted up over tailgate, cuts plate right end"
 test/915,ok,
 test/920,ok,
 test/921,ok,
 test/922,ok,
-test/924,loose,"box ~2x plate area, includes bumper"
+test/924,ok,"loose box accepted by owner 2026-11-14; was: box ~2x plate area, includes bumper"
 test/926,ok,
 test/928,ok,
 test/930,ok,
@@ -738,7 +738,7 @@ test/1235,ok,
 test/1236,ok,
 test/1237,ok,
 test/1239,ok,
-test/1240,loose,"box ~2-3x plate, includes dealer sticker below"
+test/1240,ok,"loose box accepted by owner 2026-11-14; was: box ~2-3x plate, includes dealer sticker below"
 test/1241,ok,
 test/1245,ok,
 test/1253,ok,
@@ -772,11 +772,11 @@ test/1343,ok,
 test/1349,ok,
 test/1352,ok,"plate washed out, uncertain"
 test/1353,ok,
-test/1354,loose,box many times plate size
+test/1354,ok,loose box accepted by owner 2026-11-14; was: box many times plate size
 test/1355,ok,
 test/1356,ok,
 test/1357,ok,
-test/1358,loose,"box much larger than visible plate, extends over person"
+test/1358,ok,"loose box accepted by owner 2026-11-14; was: box much larger than visible plate, extends over person"
 test/1362,ok,
 test/1363,ok,
 test/1372,ok,
@@ -862,7 +862,7 @@ test/1689,ok,
 test/1699,ok,
 test/1700,ok,
 test/1701,ok,
-test/1703,loose,box covers only left ~60% of plate
+test/1703,fixed,box redrawn on owner request 2026-11-14; was: box covers only left ~60% of plate
 test/1707,ok,
 test/1715,ok,
 test/1718,ok,
@@ -897,7 +897,7 @@ test/1827,ok,
 test/1831,ok,
 test/1835,ok,
 test/1838,ok,
-test/1840,loose,"box ~2.5x plate, covers recess left/below"
+test/1840,ok,"loose box accepted by owner 2026-11-14; was: box ~2.5x plate, covers recess left/below"
 test/1843,ok,
 test/1847,ok,
 test/1848,ok,
@@ -927,7 +927,7 @@ test/1920,ok,
 test/1925,ok,
 test/1929,ok,
 test/1932,ok,
-test/1939,loose,"box ~2.5x plate, extends right and above"
+test/1939,ok,"loose box accepted by owner 2026-11-14; was: box ~2.5x plate, extends right and above"
 test/1944,ok,
 test/1945,ok,
 test/1946,ok,
@@ -938,7 +938,7 @@ test/1960,ok,
 test/1965,ok,"motion-blurred, plate washed out"
 test/1974,ok,
 test/1980,ok,
-test/1981,loose,"tilted plate, box covers only middle band (misses top-left/bottom)"
+test/1981,fixed,"box redrawn on owner request 2026-11-14; was: tilted plate, box covers only middle band (misses top-left/bottom)"
 test/1984,ok,
 test/1989,ok,
 test/1990,ok,
@@ -1074,7 +1074,7 @@ test/2472,ok,
 test/2480,ok,
 test/2487,ok,
 test/2498,ok,
-test/2499,loose,plate mostly occluded; box extends over car in front
+test/2499,fixed,box redrawn on owner request 2026-11-14; was: plate mostly occluded; box extends over car in front
 test/2500,ok,
 test/2501,ok,mostly occluded by car in front; uncertain
 test/2502,ok,
@@ -1128,13 +1128,13 @@ test/2667,ok,partly occluded by window pillar
 test/2670,ok,
 test/2671,ok,
 test/2678,ok,counts as plate (owner rule 2026-11-14); was not_plate: grey-filled plate (anonymised)
-test/2679,loose,"box shifted down, extends well below plate"
+test/2679,ok,"loose box accepted by owner 2026-11-14; was: box shifted down, extends well below plate"
 test/2681,ok,
 test/2682,ok,
 test/2687,ok,
 test/2691,ok,
 test/2694,ok,
-test/2696,loose,box extends below and right of plate (~2x)
+test/2696,ok,loose box accepted by owner 2026-11-14; was: box extends below and right of plate (~2x)
 test/2699,ok,
 test/2701,ok,
 test/2709,ok,
@@ -1142,7 +1142,7 @@ test/2710,ok,
 test/2711,ok,
 test/2712,ok,
 test/2720,ok,
-test/2722,loose,"box shifted down, misses plate ends"
+test/2722,ok,"loose box accepted by owner 2026-11-14; was: box shifted down, misses plate ends"
 test/2725,ok,
 test/2730,ok,
 test/2733,ok,
@@ -1224,7 +1224,7 @@ test/3050,ok,
 test/3051,ok,
 test/3052,ok,
 test/3053,ok,
-test/3056,loose,box extends well below plate
+test/3056,ok,loose box accepted by owner 2026-11-14; was: box extends well below plate
 test/3059,ok,
 test/3060,ok,
 test/3063,ok,"illegible, possibly privacy-blurred"
@@ -1243,7 +1243,7 @@ test/3093,ok,
 test/3096,ok,
 test/3098,ok,
 test/3106,ok,
-test/3109,loose,"box ~4x plate, covers plate recess"
+test/3109,ok,"loose box accepted by owner 2026-11-14; was: box ~4x plate, covers plate recess"
 test/3111,ok,
 test/3112,ok,
 test/3115,ok,
@@ -1292,7 +1292,7 @@ test/3236,ok,
 test/3239,ok,
 test/3240,ok,
 test/3253,ok,
-test/3256,loose,"box ~2x plate, includes surround"
+test/3256,ok,"loose box accepted by owner 2026-11-14; was: box ~2x plate, includes surround"
 test/3259,ok,
 test/3260,ok,
 test/3269,ok,

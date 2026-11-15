@@ -98,3 +98,40 @@ def test_ignored_ids_are_neither_misses_nor_false_positives():
     audited = recall_at([image], 1, 0.2, ignored_ids=frozenset({2}))
     assert audited["ground_truth"] == 1 and audited["missed"] == 1
     assert audited["false_positives_per_image"] == 0.0
+
+
+def test_box_corrections_are_checked_hashed_and_applied(tmp_path):
+    from platedet.eval.baseline import apply_box_corrections
+
+    splits = {"test": _dataset(tmp_path)}
+    review = tmp_path / "review.csv"
+    decisions, meta = tmp_path / "d.csv", tmp_path / "m.json"
+    _write_review(review, [("test/7", "ok", ""), ("test/10", "fixed", "box shifted")])
+    label_audit.finalize(review, decisions, meta, splits)
+    corrections = tmp_path / "corrections.json"
+    corrections.write_text(json.dumps({"boxes": {"test/7": [1, 2, 3, 4]}}))
+    with pytest.raises(ValueError, match="don't match"):
+        label_audit.record_corrections(corrections, decisions, meta)
+    corrections.write_text(json.dumps({"boxes": {"test/10": [118, 49, 152, 61]}}))
+    assert label_audit.record_corrections(corrections, decisions, meta) == 1
+    fixes = label_audit.corrected_boxes("test", decisions, meta, corrections)
+    assert fixes == {10: (118.0, 49.0, 152.0, 61.0)}
+    # A fixed box is scored, not ignored.
+    assert (
+        label_audit.flagged_annotation_ids("test", splits["test"], decisions, meta) == frozenset()
+    )
+
+    image = ImageResult(
+        file_name="a.jpg",
+        annotated_classes=frozenset({1}),
+        ground_truth=[GroundTruth(120, 50, 150, 60, 1, 10), GroundTruth(10, 10, 50, 22, 1, 7)],
+        detections=[],
+    )
+    (corrected,) = apply_box_corrections([image], fixes)
+    assert corrected.ground_truth[0] == GroundTruth(118, 49, 152, 61, 1, 10)
+    assert corrected.ground_truth[1] == image.ground_truth[1]
+    assert image.ground_truth[0].x1 == 120  # original untouched
+
+    corrections.write_text(json.dumps({"boxes": {"test/10": [118, 49, 153, 61]}}))
+    with pytest.raises(ValueError, match="differs from the recorded"):
+        label_audit.corrected_boxes("test", decisions, meta, corrections)

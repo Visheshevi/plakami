@@ -89,6 +89,15 @@ v1 + 2×2 tiles, audited with these rules:
 | Test small-plate recall | 0.849 | 0.85 |
 | Holdout plate recall | 0.902 | 0.95 |
 
+## Owner review of loose boxes (2026-11-14)
+
+- The owner accepted 25 loose boxes as they are (now `ok`). Six were wrong and are redrawn (`fixed`): holdout/174, holdout/311, test/100, test/1703, test/1981, test/2499.
+  - I drew the corrections from the photos, never from model output, and checked them on a before/after sheet.
+  - The redrawn boxes are labels, so they stay in `data/processed/label_audit/corrections.json` (not committed). The meta file records its SHA-256, and scoring refuses a different file.
+  - This deviates from ADR-0008 ("boxes are never edited by hand") at the owner's request.
+- The owner's "missing box on the main car" in test/2499's image was already labelled (test/2500, `ok`). Sheets draw one box per tile.
+- **Side effect.** 15 of the 25 accepted oversized boxes now count as misses: the model's tight box overlaps them by less than 0.5. In 14 of the 15 the model did find the plate. Audited v1 + tiles: test 0.938, holdout 0.900. These 15 are back with the owner (redraw, ignore, or change the match rule).
+
 ## Consequences
 
 - Ignoring flagged labels shrinks the denominator. Reports show the flagged count per split,

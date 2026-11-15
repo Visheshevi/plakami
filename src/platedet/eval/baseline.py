@@ -15,6 +15,7 @@ import logging
 import shutil
 import subprocess
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -203,6 +204,30 @@ def write_gallery(
     return details
 
 
+def apply_box_corrections(
+    images: list[ImageResult], fixes: dict[int, tuple[float, float, float, float]]
+) -> list[ImageResult]:
+    """Copies of `images` with ground-truth boxes replaced by annotation ID (detections shared)."""
+    if not fixes:
+        return images
+    corrected = []
+    for image in images:
+        ground_truth = [
+            replace(
+                g,
+                x1=fixes[g.annotation_id][0],
+                y1=fixes[g.annotation_id][1],
+                x2=fixes[g.annotation_id][2],
+                y2=fixes[g.annotation_id][3],
+            )
+            if g.annotation_id in fixes
+            else g
+            for g in image.ground_truth
+        ]
+        corrected.append(replace(image, ground_truth=ground_truth))
+    return corrected
+
+
 def _split_dir(config: dict[str, Any], split: str) -> Path:
     """The holdout lives in its own folder (`holdout_dir`); other splits in `dataset_dir`."""
     if split == "holdout":
@@ -265,8 +290,9 @@ def evaluate(
         )
         audit_ids = (config.get("audit_ignored_ids") or {}).get(split)
         if audit_ids is not None:
+            fixes = (config.get("audit_corrections") or {}).get(split) or {}
             metrics_audited[split] = summarize(
-                images,
+                apply_box_corrections(images, fixes),
                 plate_conf=float(config["plate_conf"]),
                 vehicle_conf=float(config["vehicle_conf"]),
                 model_classes=model_classes,
