@@ -113,3 +113,42 @@ def test_identical_outputs_pass():
     tallies = _tallies()
     compare(detections, detections, tallies)
     assert passed({"license_plate": tallies[1].as_dict(), "vehicle": tallies[2].as_dict()})
+
+
+def test_build_vector_records_canvas_in_rgb_and_reproducible_detections():
+    from platedet.export.test_vectors import build_vector
+    from platedet.postprocess import postprocess
+
+    class FakeRunner:
+        def __init__(self):
+            self.raw_output = np.zeros((1, 8400, 7), dtype=np.float32)
+            self.raw_output[0, 0] = [0.5, 0.5, 1.0, 0.5, 0.9, 0.95, 0.05]  # one plate, cell 0
+
+        def raw(self, tensor):
+            return self.raw_output
+
+        def __call__(self, image):
+            tensor, ratio = letterbox(image, 640, "bgr")
+            return postprocess(
+                self.raw_output,
+                size=640,
+                ratio=ratio,
+                image_width=image.width,
+                image_height=image.height,
+                conf_threshold=0.01,
+            )
+
+    release = {
+        "input_size": 640,
+        "channel_order": "bgr",
+        "labels": ["license_plate", "vehicle"],
+        "recommended_thresholds": {"license_plate": 0.1, "vehicle": 0.3},
+        "nms_iou": 0.45,
+        "tiling": {"grid": 2, "overlap": 0.2},
+    }
+    image = Image.new("RGB", (320, 240), (200, 50, 10))
+    built = build_vector("x", image, {"onnx": FakeRunner()}, release)
+    assert built["canvas"][0, 0].tolist() == [200, 50, 10]  # stored as RGB
+    assert built["canvas"][-1, -1].tolist() == [114, 114, 114]  # padding
+    assert built["letterbox"]["resized"] == [640, 480] and built["letterbox"]["ratio"] == 2.0
+    assert built["expected"]["onnx"]["single"][0]["class"] == "license_plate"
