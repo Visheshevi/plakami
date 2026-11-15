@@ -1,0 +1,30 @@
+# T4 v1: v0 tuned for small plates (ADR-0013). Same model, input size and schedule as v0;
+# changes: keep every readable plate (>= 12 px wide), sizes 544-832 px, zoom up to 2x.
+name: yolox_tiny_640_v1
+seed: 42
+input_size: 640
+channel_order: bgr          # YOLOX trains on OpenCV (BGR) images (ADR-0010)
+nms_iou: 0.45
+min_box_px: 6               # vehicles: drop boxes whose short side is < 6 px at this size
+plate_min_width_px: 12      # plates: keep if >= 12 px wide in the stored image (ADR-0013)
+pretrained:
+  url: https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_tiny.pth
+  path: data/models/yolox_tiny.pth
+  sha256: 9de513de589ac98bb92d3bca53b5af7b9acfa9b0bacb831f7999d0f7afaee8f0
+  licence: Apache-2.0
+data:
+  combined_dir: data/processed/combined
+  pseudo_labels: data/processed/pseudo_labels/yolox_l_vehicles.json
+  training_dir: data/processed/yolox_640_v1
+train:
+  max_epoch: 100            # official 300 is too long for free Colab; revisit in T4
+  no_aug_epochs: 15
+  warmup_epochs: 5
+  batch_size: 16            # 32 overflows 16 GB unified memory on the M2 Pro (ADR-0012)
+  fp16: false               # no speed-up on Apple GPU; CUDA-only in our trainer
+  basic_lr_per_img: 0.00015625   # 0.01 / 64, YOLOX default
+  data_num_workers: 6       # M2 Pro has 10 CPU cores; use 2 on free Colab
+  eval_interval: 10
+  print_interval: 50
+  mosaic_scale: [0.5, 2.0]   # v0: [0.5, 1.5]; up to 2x shows plates at the scale tiles give
+  random_size: [17, 26]      # x32 = 544-832 px (v0: 480-800); 896 would swap on 16 GB

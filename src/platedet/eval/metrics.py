@@ -3,6 +3,11 @@ false positives per image, and AP@0.5 per class.
 
 A class is scored only on images where it is annotated (`annotated_classes`), so
 plate-only sources neither count missed vehicles nor punish vehicle detections.
+
+With `min_plate_width` (ADR-0013), plates narrower than that are unreadable and ignored:
+they are not counted as misses, and a detection matching one is not a false positive.
+`ignored_ids` (ADR-0014) ignores ground-truth boxes by annotation ID the same way, e.g.
+labels flagged by the plate label audit.
 """
 
 from __future__ import annotations
@@ -15,6 +20,8 @@ from platedet.postprocess import Detection, iou_matrix
 
 CLASS_NAMES = {1: "license_plate", 2: "vehicle"}
 SMALL_PLATE_WIDTH = 32.0
+READABLE_PLATE_WIDTH = 12.0
+PLATE = 1
 
 
 @dataclass(frozen=True)
@@ -24,6 +31,7 @@ class GroundTruth:
     x2: float
     y2: float
     class_id: int
+    annotation_id: int | None = None
 
     @property
     def width(self) -> float:
@@ -68,12 +76,52 @@ def match_image(
 
 
 def _class_items(
-    image: ImageResult, class_id: int, min_score: float
-) -> tuple[list[GroundTruth], list[Detection]]:
+    image: ImageResult,
+    class_id: int,
+    min_score: float,
+    min_plate_width: float | None = None,
+    ignored_ids: frozenset[int] = frozenset(),
+) -> tuple[list[GroundTruth], list[GroundTruth], list[Detection]]:
+    """(scored ground truth, ignored ground truth, detections) for one class in one image."""
+    ground_truth = [g for g in image.ground_truth if g.class_id == class_id]
+    detections = [d for d in image.detections if d.class_id == class_id and d.score >= min_score]
+
+    def ignore(box: GroundTruth) -> bool:
+        if box.annotation_id is not None and box.annotation_id in ignored_ids:
+            return True
+        return class_id == PLATE and min_plate_width is not None and box.width < min_plate_width
+
     return (
-        [g for g in image.ground_truth if g.class_id == class_id],
-        [d for d in image.detections if d.class_id == class_id and d.score >= min_score],
+        [g for g in ground_truth if not ignore(g)],
+        [g for g in ground_truth if ignore(g)],
+        detections,
     )
+
+
+def _match(
+    image: ImageResult,
+    class_id: int,
+    min_score: float,
+    iou_threshold: float,
+    min_plate_width: float | None,
+    ignored_ids: frozenset[int] = frozenset(),
+) -> tuple[list[GroundTruth], list[bool], list[Detection], list[bool]]:
+    """Match one class in one image; unmatched detections on ignored boxes are removed.
+
+    Returns (scored ground truth, gt_matched, kept detections, detection_is_true_positive).
+    """
+    ground_truth, ignored, detections = _class_items(
+        image, class_id, min_score, min_plate_width, ignored_ids
+    )
+    gt_matched, detection_tp = match_image(ground_truth, detections, iou_threshold)
+    if ignored and detections:
+        ignored_boxes = np.array([[g.x1, g.y1, g.x2, g.y2] for g in ignored], dtype=np.float64)
+        det_boxes = np.array([[d.x1, d.y1, d.x2, d.y2] for d in detections], dtype=np.float64)
+        on_ignored = iou_matrix(det_boxes, ignored_boxes).max(axis=1) >= iou_threshold
+        kept = [i for i, tp in enumerate(detection_tp) if tp or not on_ignored[i]]
+        detections = [detections[i] for i in kept]
+        detection_tp = [detection_tp[i] for i in kept]
+    return ground_truth, gt_matched, detections, detection_tp
 
 
 def recall_at(
@@ -83,6 +131,8 @@ def recall_at(
     *,
     iou_threshold: float = 0.5,
     max_width: float | None = None,
+    min_plate_width: float | None = None,
+    ignored_ids: frozenset[int] = frozenset(),
 ) -> dict[str, float | int | None]:
     """Recall, missed count and false positives per image at one confidence threshold.
 
@@ -94,8 +144,9 @@ def recall_at(
         if class_id not in image.annotated_classes:
             continue
         scored_images += 1
-        ground_truth, detections = _class_items(image, class_id, conf_threshold)
-        gt_matched, detection_tp = match_image(ground_truth, detections, iou_threshold)
+        ground_truth, gt_matched, _, detection_tp = _match(
+            image, class_id, conf_threshold, iou_threshold, min_plate_width, ignored_ids
+        )
         for box, hit in zip(ground_truth, gt_matched, strict=True):
             if max_width is not None and box.width >= max_width:
                 continue
@@ -114,7 +165,12 @@ def recall_at(
 
 
 def average_precision(
-    images: list[ImageResult], class_id: int, *, iou_threshold: float = 0.5
+    images: list[ImageResult],
+    class_id: int,
+    *,
+    iou_threshold: float = 0.5,
+    min_plate_width: float | None = None,
+    ignored_ids: frozenset[int] = frozenset(),
 ) -> float | None:
     """All-point interpolated AP (VOC 2010+ / COCO-style area under the PR curve)."""
     scores: list[float] = []
@@ -123,9 +179,10 @@ def average_precision(
     for image in images:
         if class_id not in image.annotated_classes:
             continue
-        ground_truth, detections = _class_items(image, class_id, 0.0)
+        ground_truth, _, detections, detection_tp = _match(
+            image, class_id, 0.0, iou_threshold, min_plate_width, ignored_ids
+        )
         total += len(ground_truth)
-        _, detection_tp = match_image(ground_truth, detections, iou_threshold)
         scores.extend(d.score for d in detections)
         hits.extend(detection_tp)
     if total == 0:
@@ -142,15 +199,21 @@ def average_precision(
 
 
 def missed_boxes(
-    images: list[ImageResult], class_id: int, conf_threshold: float, iou_threshold: float = 0.5
+    images: list[ImageResult],
+    class_id: int,
+    conf_threshold: float,
+    iou_threshold: float = 0.5,
+    min_plate_width: float | None = None,
+    ignored_ids: frozenset[int] = frozenset(),
 ) -> list[tuple[ImageResult, GroundTruth]]:
     """Ground-truth boxes not found at the threshold, largest (most obvious) first."""
     misses: list[tuple[ImageResult, GroundTruth]] = []
     for image in images:
         if class_id not in image.annotated_classes:
             continue
-        ground_truth, detections = _class_items(image, class_id, conf_threshold)
-        gt_matched, _ = match_image(ground_truth, detections, iou_threshold)
+        ground_truth, gt_matched, _, _ = _match(
+            image, class_id, conf_threshold, iou_threshold, min_plate_width, ignored_ids
+        )
         misses.extend(
             (image, box) for box, hit in zip(ground_truth, gt_matched, strict=True) if not hit
         )
@@ -164,8 +227,14 @@ def summarize(
     vehicle_conf: float = 0.3,
     iou_threshold: float = 0.5,
     model_classes: frozenset[int] = frozenset(CLASS_NAMES),
+    min_plate_width: float | None = None,
+    ignored_ids: frozenset[int] = frozenset(),
 ) -> dict[str, object]:
-    """All SPEC §6 metrics for one split. Classes the model can't predict are reported as None."""
+    """All SPEC §6 metrics for one split. Classes the model can't predict are reported as None.
+
+    With `min_plate_width`, unreadable plates are ignored and "small" means
+    `min_plate_width` to 32 px (ADR-0013).
+    """
     summary: dict[str, object] = {"images": len(images)}
     thresholds = {1: plate_conf, 2: vehicle_conf}
     for class_id, name in CLASS_NAMES.items():
@@ -174,8 +243,21 @@ def summarize(
             continue
         entry: dict[str, object] = {
             "conf_threshold": thresholds[class_id],
-            **recall_at(images, class_id, thresholds[class_id], iou_threshold=iou_threshold),
-            "ap50": average_precision(images, class_id, iou_threshold=iou_threshold),
+            **recall_at(
+                images,
+                class_id,
+                thresholds[class_id],
+                iou_threshold=iou_threshold,
+                min_plate_width=min_plate_width,
+                ignored_ids=ignored_ids,
+            ),
+            "ap50": average_precision(
+                images,
+                class_id,
+                iou_threshold=iou_threshold,
+                min_plate_width=min_plate_width,
+                ignored_ids=ignored_ids,
+            ),
         }
         if class_id == 1:
             entry["small_plates"] = recall_at(
@@ -184,6 +266,8 @@ def summarize(
                 plate_conf,
                 iou_threshold=iou_threshold,
                 max_width=SMALL_PLATE_WIDTH,
+                min_plate_width=min_plate_width,
+                ignored_ids=ignored_ids,
             )
         summary[name] = entry
     return summary

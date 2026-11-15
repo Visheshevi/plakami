@@ -15,6 +15,7 @@ import logging
 import shutil
 import subprocess
 from collections.abc import Callable
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -30,7 +31,13 @@ from platedet.eval.metrics import (
     missed_boxes,
     summarize,
 )
-from platedet.postprocess import DEFAULT_NMS_IOU, Detection, letterbox, postprocess
+from platedet.postprocess import (
+    DEFAULT_NMS_IOU,
+    Detection,
+    detect_tiled,
+    letterbox,
+    postprocess,
+)
 
 LOGGER = logging.getLogger("platedet.eval")
 EVAL_SPLITS = ("train", "val", "test", "holdout")
@@ -60,7 +67,14 @@ def load_split(dataset_dir: Path, split: str) -> list[ImageResult]:
     for annotation in dataset["annotations"]:
         x, y, width, height = annotation["bbox"]
         images[annotation["image_id"]].ground_truth.append(
-            GroundTruth(x, y, x + width, y + height, int(annotation["category_id"]))
+            GroundTruth(
+                x,
+                y,
+                x + width,
+                y + height,
+                int(annotation["category_id"]),
+                int(annotation["id"]) if "id" in annotation else None,
+            )
         )
     return list(images.values())
 
@@ -102,6 +116,21 @@ class OnnxYoloxPredictor:
             conf_threshold=self.conf_threshold,
             nms_iou=self.nms_iou,
             class_map=self.class_map,
+        )
+
+
+class TiledPredictor:
+    """Whole image plus `grid` x `grid` tiles through another predictor (ADR-0013)."""
+
+    def __init__(self, predictor: Predictor, *, grid: int, overlap: float, nms_iou: float) -> None:
+        self.predictor = predictor
+        self.grid = grid
+        self.overlap = overlap
+        self.nms_iou = nms_iou
+
+    def __call__(self, image: Image.Image) -> list[Detection]:
+        return detect_tiled(
+            image, self.predictor, grid=self.grid, overlap=self.overlap, nms_iou=self.nms_iou
         )
 
 
@@ -175,6 +204,30 @@ def write_gallery(
     return details
 
 
+def apply_box_corrections(
+    images: list[ImageResult], fixes: dict[int, tuple[float, float, float, float]]
+) -> list[ImageResult]:
+    """Copies of `images` with ground-truth boxes replaced by annotation ID (detections shared)."""
+    if not fixes:
+        return images
+    corrected = []
+    for image in images:
+        ground_truth = [
+            replace(
+                g,
+                x1=fixes[g.annotation_id][0],
+                y1=fixes[g.annotation_id][1],
+                x2=fixes[g.annotation_id][2],
+                y2=fixes[g.annotation_id][3],
+            )
+            if g.annotation_id in fixes
+            else g
+            for g in image.ground_truth
+        ]
+        corrected.append(replace(image, ground_truth=ground_truth))
+    return corrected
+
+
 def _split_dir(config: dict[str, Any], split: str) -> Path:
     """The holdout lives in its own folder (`holdout_dir`); other splits in `dataset_dir`."""
     if split == "holdout":
@@ -193,6 +246,8 @@ def evaluate(
     class_map = {int(k): int(v) for k, v in (config["model"].get("class_map") or {}).items()}
     model_classes = frozenset(class_map.values()) if class_map else frozenset(CLASS_NAMES)
     metrics: dict[str, Any] = {}
+    metrics_all_plates: dict[str, Any] = {}
+    metrics_audited: dict[str, Any] = {}
     worst_misses: dict[str, Any] = {}
     for split in config["splits"]:
         if split not in EVAL_SPLITS:
@@ -225,23 +280,53 @@ def evaluate(
                 )
                 if number % 250 == 0:
                     LOGGER.info("  %s: %d/%d", split, number, len(images))
+        min_plate_width = config.get("min_plate_width")
         metrics[split] = summarize(
             images,
             plate_conf=float(config["plate_conf"]),
             vehicle_conf=float(config["vehicle_conf"]),
             model_classes=model_classes,
+            min_plate_width=min_plate_width,
         )
+        audit_ids = (config.get("audit_ignored_ids") or {}).get(split)
+        if audit_ids is not None:
+            fixes = (config.get("audit_corrections") or {}).get(split) or {}
+            metrics_audited[split] = summarize(
+                apply_box_corrections(images, fixes),
+                plate_conf=float(config["plate_conf"]),
+                vehicle_conf=float(config["vehicle_conf"]),
+                model_classes=model_classes,
+                min_plate_width=min_plate_width,
+                ignored_ids=audit_ids,
+            )
+        if min_plate_width is not None:
+            metrics_all_plates[split] = summarize(
+                images,
+                plate_conf=float(config["plate_conf"]),
+                vehicle_conf=float(config["vehicle_conf"]),
+                model_classes=model_classes,
+            )
         worst_misses[split] = {}
         thresholds = {1: float(config["plate_conf"]), 2: float(config["vehicle_conf"])}
         for class_id in sorted(model_classes):
             name = CLASS_NAMES[class_id]
             worst_misses[split][name] = write_gallery(
-                missed_boxes(images, class_id, thresholds[class_id]),
+                missed_boxes(
+                    images,
+                    class_id,
+                    thresholds[class_id],
+                    min_plate_width=config.get("min_plate_width"),
+                ),
                 dataset_dir,
                 run_dir / f"misses_{split}_{name}.jpg",
                 int(config.get("gallery_size", 30)),
             )
-    return {"metrics": metrics, "worst_misses": worst_misses}
+    results: dict[str, Any] = {"metrics": metrics, "worst_misses": worst_misses}
+    if metrics_all_plates:
+        results["metrics_all_plates"] = metrics_all_plates
+    if metrics_audited:
+        results["metrics_audited"] = metrics_audited
+    return results
 
 
 def run_baseline(

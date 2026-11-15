@@ -44,7 +44,9 @@ make pseudo-labels     # vehicle pseudo-labels for plate-only images (ADR-0011)
 make train-data CONFIG=configs/train/<name>.yaml  # YOLOX training labels at that size
 make colab-bundle      # tar for Colab training (code, YOLOX, checkpoint, data); needs a clean commit
 make train CONFIG=configs/<name>.yaml RUN_ID=<id>   # train into runs/<id>/; Apple GPU locally (ADR-0012) or CUDA; rerun to resume
-make eval RUN=<run_id>                  # metrics + error gallery on val/test/holdout
+make eval RUN=<run_id> [TILES=2] [SPLITS=val] [RESCORE=1]  # metrics + error gallery on val/test/holdout; TILES = tiled detection (ADR-0013); RESCORE reuses saved predictions
+make audit-prepare     # plate label audit sheets for test/holdout (ADR-0014)
+make audit-finalize    # check the review and write configs/audit/plate_labels.csv
 make export RUN=<run_id>                # ONNX now (checked against PyTorch); TFLite FP16/INT8 in T5
 make parity RUN=<run_id>                # ONNX vs TFLite parity + speed + size
 make test       # pytest (unit + smoke train/export on tests/data/smoke)

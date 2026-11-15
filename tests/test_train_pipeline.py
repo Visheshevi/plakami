@@ -63,6 +63,18 @@ def test_convert_split_drops_small_boxes_and_adds_pseudo_labels_to_plate_only_im
     assert "annotated_classes" not in output["images"][0]
 
 
+def test_convert_split_keeps_plates_by_stored_width_when_configured():
+    coco = _coco()
+    coco["annotations"].append({"id": 5, "image_id": 1, "category_id": 1, "bbox": [0, 0, 11, 4]})
+    pseudo = {"images/ccpd/b.jpg": [[50, 50, 450, 350, 0.9]]}
+    output, counts = convert_split(coco, pseudo, 640, min_box_px=6, plate_min_width_px=12)
+    # The 30x8 plate is readable (>= 12 px wide), so it is kept; the 11x4 plate is not.
+    assert counts["kept_license_plate"] == 3
+    assert counts["dropped_small_license_plate"] == 1
+    plates = [a["bbox"] for a in output["annotations"] if a["category_id"] == 1]
+    assert [500, 300, 30, 8] in plates and [0, 0, 11, 4] not in plates
+
+
 def test_convert_split_requires_pseudo_labels_for_plate_only_images():
     with pytest.raises(ValueError, match="No pseudo-labels"):
         convert_split(_coco(), {}, input_size=640, min_box_px=6)
@@ -131,7 +143,7 @@ def test_target_rows_and_report(tmp_path):
     rows = {row["metric"]: row for row in target_rows(metrics)}
     assert rows["Plate recall @0.2 on test"]["met"] is True
     assert rows["Plate recall @0.2 on holdout"]["met"] is None
-    assert rows["Small-plate recall (<32 px) on test"]["met"] is False
+    assert rows["Small-plate recall (12-32 px) on test"]["met"] is False
     assert rows["Plate false positives per image on test"]["met"] is False
     (tmp_path / "eval").mkdir()
     summary = {
@@ -154,6 +166,18 @@ def test_target_rows_and_report(tmp_path):
     report = write_report(tmp_path, summary).read_text()
     assert "| Plate recall @0.2 on test | 0.960 | >= 0.95 | yes |" in report
     assert "`images/x.jpg`" in report
+
+    # With the readable-size rule and a label audit, both extra columns appear.
+    summary |= {
+        "min_plate_width": 12.0,
+        "targets_all_plates": list(rows.values()),
+        "targets_audited": list(rows.values()),
+        "audit_flagged": {"test": 3},
+    }
+    report = write_report(tmp_path, summary).read_text()
+    assert "flagged test: 3" in report
+    assert "| Metric | Value | Target | Met | All plates | Audited | Met (audited) |" in report
+    assert "| Plate recall @0.2 on test | 0.960 | >= 0.95 | yes | 0.960 | 0.960 | yes |" in report
 
 
 @pytest.fixture
