@@ -79,7 +79,7 @@ T5 plan proposed to the owner (TFLite FP16/INT8 via onnx2tf, parity, speed, size
 - GitHub repository creation and remote setup are deferred.
 - Local Git is not initialized; no task branch or commit exists.
 - Proposed data and evaluation targets in SPEC §§4–6 remain unconfirmed.
-- 2026-11-12: Owner wants a configurable redaction (blur) tool after T3, for use across several apps. Settings are passed per call and per class (style blur/pixelate/solid, strength, colour with alpha, padding, corner shape and edge softness, per-class confidence, which classes). Deliverables: Python reference in the release, plus a documented settings spec with test vectors so Kotlin/Swift apps can match it. Plan to be written after T3 results.
+- ~~2026-11-12: Owner wants a configurable redaction (blur) tool after T3.~~ Dropped by the owner on 2026-11-14: apps blur the returned boxes themselves. Instead, once the owner has tested and validated the model, write a `README.md` explaining how to use the model in mobile apps (pre/post-processing, tiling, outputs, blurring the boxes).
 - 2026-11-12: Owner wants face blurring added after T3 (a third class from Open Images "Human face" labels; plan to be written before T4). Phone-number blurring is a possible later version (needs text detection plus OCR).
 - 2026-11-12: Proposed SPEC §5 wording change for BGR input and OpenCV-style resize (ADR-0010), awaiting the owner.
 - 2026-11-12: Proposed SPEC §6 wording change for the dropped plate baseline (ADR-0007), awaiting the owner. Channel order for our own models (SPEC §5 says RGB; the official YOLOX trainer reads BGR) is to be fixed in the T3 plan.
@@ -145,3 +145,4 @@ T5 plan proposed to the owner (TFLite FP16/INT8 via onnx2tf, parity, speed, size
 - 2026-11-14: Owner reviewed the 31 loose boxes: 25 accepted, 6 redrawn by me from the photos and checked on a before/after sheet (`make audit-corrections`; boxes stay in `data/`). Accepted oversized labels make 15 tight model boxes count as misses (14 of 15 overlap the plate). Audited v1 + tiles: test 0.938, holdout 0.900. `make test` 86 passed.
 - 2026-11-14: Redrew all 25 accepted loose boxes from the photos (model-blind; all, not only the 15 the model missed). Audited v1 + tiles: test 0.947, small 0.849, holdout 0.900, FP/image 0.418.
 - 2026-11-14: Owner accepted v1 + 2×2 tiles for release (test 0.947, small 0.849, holdout 0.900, vehicles 0.741; FP 0.42). ADR-0015 records the gap; targets unchanged. T4 closed and merged to `main`.
+- 2026-11-14: Owner dropped the blur tool (apps blur boxes themselves). After T5/T6 and the owner's own testing, write a mobile-integration `README.md` on request.
