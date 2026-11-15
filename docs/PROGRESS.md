@@ -64,11 +64,12 @@ Bounded sample results (`MAX_IMAGES=100`): 83 usable images; 17 image URLs retur
 - [x] Owner spot check (`data/processed/label_audit/spot_check/`): 50/50 agreed (2026-11-14); `configs/audit/` committed
 - [x] Owner rules (2026-11-14): blanked plates and dealer/show inserts count as plates (applied, ADR-0014)
 - [x] Owner reviewed the 31 loose boxes: 25 accepted, 6 redrawn (`corrections.json`, hash in meta)
-- [ ] Owner decides on 15 accepted oversized boxes the model's tight box doesn't match (IoU < 0.5)
+- [x] All 25 accepted loose boxes redrawn (owner go-ahead 2026-11-14); 31 corrections in total
+- [ ] Owner checks the redraw sheets (`data/processed/label_audit/loose/redraw_check_*.jpg`)
 
 ### Next up
 
-Waiting for the owner: 15 accepted oversized labels now count as misses (model box IoU < 0.5). Options: redraw them (recommended), ignore them, or change the plate match rule (SPEC). Audited v1 + tiles: test 0.938, small 0.845, holdout 0.900.
+Waiting for the owner to check the 25 redrawn boxes. Then the remaining gap (v1 + tiles, audited): test 0.947 / 0.95, small 0.849 / 0.85, holdout 0.900 / 0.95; options: val-tuned plate threshold (SPEC change), 800 px model (step C).
 
 ### Open owner decisions
 
@@ -141,3 +142,4 @@ Waiting for the owner: 15 accepted oversized labels now count as misses (model b
 - 2026-11-14: Owner spot check of the label audit: 50/50 agreed (two comments, no changes). Committed `configs/audit/plate_labels.csv` and meta (IDs and decisions only).
 - 2026-11-14: Owner rules: blanked plates and dealer/show inserts count as plates. Of 52 such labels, 49 became ok, 2 loose, 1 kept not_plate (checked by eye). Audit now: test 1,316 / 28 / 6, holdout 327 / 3 / 3. Audited v1 + tiles: test 0.948, small 0.849, holdout 0.902. Loose-box sheets for the owner in `data/processed/label_audit/loose/`.
 - 2026-11-14: Owner reviewed the 31 loose boxes: 25 accepted, 6 redrawn by me from the photos and checked on a before/after sheet (`make audit-corrections`; boxes stay in `data/`). Accepted oversized labels make 15 tight model boxes count as misses (14 of 15 overlap the plate). Audited v1 + tiles: test 0.938, holdout 0.900. `make test` 86 passed.
+- 2026-11-14: Redrew all 25 accepted loose boxes from the photos (model-blind; all, not only the 15 the model missed). Audited v1 + tiles: test 0.947, small 0.849, holdout 0.900, FP/image 0.418.

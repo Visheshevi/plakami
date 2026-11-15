@@ -98,6 +98,26 @@ v1 + 2×2 tiles, audited with these rules:
 - The owner's "missing box on the main car" in test/2499's image was already labelled (test/2500, `ok`). Sheets draw one box per tile.
 - **Side effect.** 15 of the 25 accepted oversized boxes now count as misses: the model's tight box overlaps them by less than 0.5. In 14 of the 15 the model did find the plate. Audited v1 + tiles: test 0.938, holdout 0.900. These 15 are back with the owner (redraw, ignore, or change the match rule).
 
+## All accepted loose boxes redrawn (2026-11-14)
+
+- At the owner's go-ahead, I redrew all 25 accepted loose boxes, not only the 15 the model failed to match.
+  - Choosing by model result would have flattered the scores; choosing by label quality does not.
+  - Boxes were measured from gridded crops of the photos, without model output, and shown on before/after sheets (`data/processed/label_audit/loose/redraw_check_*.jpg`).
+  - holdout/110 (a tilted blanked plate) kept almost the same box: an upright box around a tilted plate is necessarily loose.
+- Final audit:
+  - test: 1,316 ok, 28 fixed, 6 not_plate;
+  - holdout: 327 ok, 3 fixed, 3 not_plate.
+
+  31 corrections in total, hash in meta.
+- v1 + 2×2 tiles, audited:
+
+  | Metric | Audited | Target |
+  |---|---|---|
+  | Test plate recall | 0.947 | 0.95 |
+  | Test small-plate recall | 0.849 | 0.85 |
+  | Holdout plate recall | 0.900 | 0.95 |
+  | Test plate FP/image | 0.418 | — |
+
 ## Consequences
 
 - Ignoring flagged labels shrinks the denominator. Reports show the flagged count per split,
