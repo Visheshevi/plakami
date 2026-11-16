@@ -82,19 +82,19 @@ Bounded sample results (`MAX_IMAGES=100`): 83 usable images; 17 image URLs retur
 - [x] Owner decisions (2026-11-15): build the release package locally first, push to GitHub later; MIT for code and weights (changed from Apache-2.0); mobile `README.md` is part of T6
 - [x] Release package builder (`make release`) and clean-copy check (`make release-check`): all SPEC §8 assets, FP16 only, `SHA256SUMS` (ADR-0018)
 - [x] `MODEL_CARD.md` and mobile integration `README.md` (Kotlin + Swift sketches, not compiled)
-- [ ] Owner gives the copyright holder name for `LICENSE` (placeholder; `make release-check` fails until set)
+- [x] Copyright holder for `LICENSE`: Vishesh Chanana (2026-11-15)
 - [ ] Owner approves the evaluation report and package
 - [ ] GitHub repo, CI release from tag (deferred by owner)
 
 ### Next up
 
-T6: owner reviews the v1.0.0 package (`runs/yolox_tiny_640_v1/release/v1.0.0/`: README, MODEL_CARD, release.json) and gives the copyright name. Then GitHub repo + CI release from tag.
+T6: owner reviews the v1.0.0 package (`runs/yolox_tiny_640_v1/release/v1.0.0/`: README, MODEL_CARD, release.json). Then GitHub repo + CI release from tag.
 
 ### Open owner decisions
 
 - SPEC §6 readable-size wording (ADR-0013): plates under 12 px wide excluded; small = 12–32 px. Proposed, not applied.
 
-- 2026-11-15: Owner chose MIT for this repo's code and the released weights (SPEC §11.3; first Apache-2.0, then changed to MIT). Copyright holder name still needed.
+- 2026-11-15: Owner chose MIT for this repo's code and the released weights (SPEC §11.3; first Apache-2.0, then changed to MIT). Copyright holder: Vishesh Chanana.
 - 2026-11-15: Proposed SPEC wording (ADR-0018): §11.3 licence decided (MIT); §8 no INT8 in v1; §8 package also has README, LICENSE and third-party notices.
 - GitHub repository creation and remote setup are deferred.
 - Proposed data and evaluation targets in SPEC §§4–6 remain unconfirmed.
