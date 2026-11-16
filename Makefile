@@ -1,4 +1,4 @@
-.PHONY: test-vectors try parity audit-prepare audit-finalize audit-corrections pseudo-labels train-data train export eval colab-bundle setup data data-combine holdout-prepare holdout-finalize baseline test lint
+.PHONY: release release-check test-vectors try parity audit-prepare audit-finalize audit-corrections pseudo-labels train-data train export eval colab-bundle setup data data-combine holdout-prepare holdout-finalize baseline test lint
 
 DATA_CONFIG ?= configs/data/open_images.yaml
 
@@ -41,6 +41,12 @@ train:
 export:
 	PYTHONPATH=src uv run --locked python -m platedet.export.onnx_export --run-dir runs/$(RUN)
 	PYTHONPATH=src uv run --locked python -m platedet.export.tflite_export --run-dir runs/$(RUN)
+
+release:
+	PYTHONPATH=src uv run --locked python -m platedet.export.release
+
+release-check:
+	PYTHONPATH=src uv run --locked python -m platedet.export.release --check
 
 test-vectors:
 	PYTHONPATH=src uv run --locked python -m platedet.export.test_vectors $(if $(CHECK),--check)

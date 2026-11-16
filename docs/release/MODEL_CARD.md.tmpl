@@ -1,0 +1,133 @@
+# Model card: Plakami v$version
+
+A small detector that finds **licence plates** and **vehicles** in a photo. It returns a box,
+a class and a confidence score for each one.
+
+## Intended use
+
+- **Privacy:** find plates so an app can blur or mask them before a photo is stored or shared.
+- **Photo checks:** confirm that a photo contains a vehicle.
+- **One photo at a time,** on phones (TFLite FP16) or servers and desktops (ONNX). The
+  model was not tuned for live video.
+- **Worldwide plates.** The training data is mostly US, UK, continental European and
+  Chinese (CCPD) plates, so it is less tested elsewhere (see Limits).
+
+**Not intended for:** reading plate text (it has no OCR), identifying or tracking people or
+vehicles, or any use where a missed plate creates a legal or safety risk without human review.
+
+## Files
+
+| File | Use |
+|---|---|
+| `detector.onnx` | FP32, $onnx_mb MB, input NCHW `(1, 3, 640, 640)` |
+| `detector_fp16.tflite` | FP16 weights, $fp16_mb MB, input NHWC `(1, 640, 640, 3)`, float32 in and out |
+
+There is no INT8 file in this release: it failed the accuracy check against ONNX.
+Integration steps are in `README.md`; the exact contract is in `release.json`.
+
+## How to run it (summary)
+
+- Letterbox to 640 × 640, BGR, raw 0–255 values. Decode the `(1, 8400, 7)` output, apply
+  class-aware NMS (IoU 0.45) and map the boxes back to the photo.
+- **Recommended thresholds:** plate $plate_threshold, vehicle $vehicle_threshold. They were
+  chosen on the validation set; a low plate threshold favours not missing plates.
+- **Recommended mode: 2 × 2 tiles.** Run the whole photo plus 4 overlapping tiles and merge.
+  This finds far more small, distant plates. It takes about 5 model passes per photo.
+
+## Accuracy
+
+Measured with ONNX FP32 and 2 × 2 tiles. The phone file gives the same boxes (see Parity).
+
+- **Test set:** $test_images photos and $test_plates readable plates from the same sources as
+  training. It was never used for training or tuning.
+- **Holdout:** $holdout_images photos and $holdout_plates plates from the Open Images test split,
+  each reviewed by hand. It is closer to real-world photos.
+- **Labels:** both sets were audited (wrong labels fixed or ignored). Plates under 12 px
+  wide are ignored because they can't be read.
+
+### At the recommended thresholds
+
+| | Test | Holdout |
+|---|---|---|
+| Plate recall | $test_plate_recall | $holdout_plate_recall |
+| Small plates (12–32 px wide) recall | $test_small | $holdout_small |
+| False plate boxes per photo | $test_plate_fp | $holdout_plate_fp |
+| Vehicle recall | $test_vehicle_recall | $holdout_vehicle_recall |
+| False vehicle boxes per photo | $test_vehicle_fp | $holdout_vehicle_fp |
+
+The holdout has plate labels only, so it has no vehicle numbers.
+
+### Project targets
+
+These are measured at fixed thresholds (plate 0.2, vehicle 0.3), so they stay comparable
+between releases.
+
+| Metric | Value | Target | Met |
+|---|---|---|---|
+$spec_rows
+
+v$version misses some of the targets. The project owner reviewed and accepted the gap for
+this release.
+
+- At the targets' plate threshold of 0.2, plate recall is just under 0.95 on the test set
+  and 0.90 on the harder holdout. At the recommended 0.10 it is higher (see above).
+- Vehicle recall is low partly because the vehicle labels include close-ups and interior
+  shots that a detector struggles to box. It is fine for "is there a vehicle in this photo".
+
+## Parity: phone vs server model
+
+The FP16 file was checked against ONNX FP32 on $parity_images test and holdout photos.
+
+- **Single pass:** all $single_boxes boxes match (box overlap ≥ 0.9, score within 0.05).
+- **2 × 2 tiles:** $tiles_off of $tiles_boxes boxes differ slightly, and $tiles_missing are
+  missing. The differences are near-ties where two passes find the same object.
+
+**Speed** on an Apple M2 Pro CPU (median):
+
+| | One pass | Photo with 2 × 2 tiles |
+|---|---|---|
+| ONNX | $onnx_pass_ms ms | $onnx_ms ms |
+| TFLite FP16, 4 threads | $fp16_pass_ms ms | $fp16_ms ms |
+
+Phones vary; GPU or NNAPI/Core ML delegates can be faster.
+
+## Limits
+
+- **Dark photos at steep angles:** plates in dim light, seen at a sharp angle or very
+  close up and cut off at the photo edge, can be missed entirely.
+- **Small plates:** plates under about 12 px wide are not expected to be found. Of plates
+  12–32 px wide, $test_small_missed% are missed on the test set and $holdout_small_missed% on the
+  harder holdout.
+- **Regions:** few training plates from Africa, South America, the Middle East, South and
+  South-East Asia, Japan or Korea. Test on your own photos before relying on it there.
+- **Look-alikes:** signs, stickers and dealer inserts are sometimes boxed as plates.
+  Dealer inserts and blanked plates count as plates by design.
+- **Vehicles:** close-ups, partial vehicles and interiors are often missed or boxed loosely.
+- **Plates away from vehicles** (on a wall, held in a hand) are likely to be boxed as plates
+  too; the model doesn't check that a plate is on a vehicle.
+
+## Training data
+
+- **9,503 training photos** with 10,427 plate boxes and 16,930 vehicle boxes:
+  - Open Images V6 (CC BY 2.0): 6,113 photos;
+  - CCPD 2020 (MIT): 3,150 Chinese green-plate photos;
+  - Kaggle "Car License Plate Detection" (CC0): 240 photos.
+- About 4,500 more vehicle boxes were machine-generated, by a larger YOLOX model, on the
+  plate-only photos.
+- **Excluded:** sources with non-commercial, GPL or AGPL licences, or unknown licences.
+- **Credits:** every training image is credited in `ATTRIBUTION.md`.
+
+## Model
+
+- **YOLOX-Tiny:** about 5 M parameters, 640 × 640 input, anchor-free, strides 8/16/32.
+- **Starting point:** the Megvii COCO checkpoint (Apache-2.0).
+- **Training:** 100 epochs; the checkpoint was picked on the validation set.
+- **Provenance:** checkpoint SHA-256 `$checkpoint_sha`; release commit `$commit`.
+  All file hashes are in `release.json` and `SHA256SUMS`.
+
+## Licence
+
+- **This release:** MIT (`LICENSE`).
+- **YOLOX:** the model derives from YOLOX by Megvii (Apache-2.0, `THIRD_PARTY_NOTICES.md`).
+- **Training images:** credited in `ATTRIBUTION.md`.
+- **Test-vector photos:** credited in `test_vectors/ATTRIBUTION.md`, under their own licences.
