@@ -79,21 +79,23 @@ Bounded sample results (`MAX_IMAGES=100`): 83 usable images; 17 image URLs retur
 
 ### T6 — Release v1.0.0 (current, branch `t6-release`)
 
-- [x] Owner decisions (2026-11-15): build the release package locally first, push to GitHub later; Apache-2.0 for code and weights; mobile `README.md` is part of T6
-- [ ] Release package builder (`make release`): all SPEC §8 assets, FP16 only, `SHA256SUMS`, verify step
-- [ ] `MODEL_CARD.md` and mobile integration `README.md`
+- [x] Owner decisions (2026-11-15): build the release package locally first, push to GitHub later; MIT for code and weights (changed from Apache-2.0); mobile `README.md` is part of T6
+- [x] Release package builder (`make release`) and clean-copy check (`make release-check`): all SPEC §8 assets, FP16 only, `SHA256SUMS` (ADR-0018)
+- [x] `MODEL_CARD.md` and mobile integration `README.md` (Kotlin + Swift sketches, not compiled)
+- [ ] Owner gives the copyright holder name for `LICENSE` (placeholder; `make release-check` fails until set)
 - [ ] Owner approves the evaluation report and package
 - [ ] GitHub repo, CI release from tag (deferred by owner)
 
 ### Next up
 
-T6: build the v1.0.0 release package locally (`make release`), model card and mobile README; owner review. GitHub push after that.
+T6: owner reviews the v1.0.0 package (`runs/yolox_tiny_640_v1/release/v1.0.0/`: README, MODEL_CARD, release.json) and gives the copyright name. Then GitHub repo + CI release from tag.
 
 ### Open owner decisions
 
 - SPEC §6 readable-size wording (ADR-0013): plates under 12 px wide excluded; small = 12–32 px. Proposed, not applied.
 
-- 2026-11-15: Owner chose Apache-2.0 for this repo's code and the released weights (SPEC §11.3).
+- 2026-11-15: Owner chose MIT for this repo's code and the released weights (SPEC §11.3; first Apache-2.0, then changed to MIT). Copyright holder name still needed.
+- 2026-11-15: Proposed SPEC wording (ADR-0018): §11.3 licence decided (MIT); §8 no INT8 in v1; §8 package also has README, LICENSE and third-party notices.
 - GitHub repository creation and remote setup are deferred.
 - Proposed data and evaluation targets in SPEC §§4–6 remain unconfirmed.
 - ~~2026-11-12: Owner wants a configurable redaction (blur) tool after T3.~~ Dropped by the owner on 2026-11-14: apps blur the returned boxes themselves. Instead, once the owner has tested and validated the model, write a `README.md` explaining how to use the model in mobile apps (pre/post-processing, tiling, outputs, blurring the boxes).
@@ -123,6 +125,8 @@ T6: build the v1.0.0 release package locally (`make release`), model card and mo
 | Small-plate improvements (T4) | Tiled detection (whole image + 2×2 tiles) in `postprocess.py`; unreadable-plate ignore rule; v1 training config keeping every readable plate; plate label audit for test/holdout with owner-checked decisions and redrawn boxes; audited scores and `RESCORE`. ADR-0013/0014/0015. | `t4-small-plates` |
 | Local Apple-GPU training (T3) | `make train` runs on the Mac GPU (MPS) when no CUDA GPU exists: a YOLOX `Trainer` subclass replacing only the CUDA-specific parts, with the same schedule, EMA, resume and checkpoints; keeps the Mac awake; fixed `RUN_ID` for resume. ADR-0012. | `t3-local-mps-training` |
 | Guarded Colab CCPD sampler (partial T1) | Checks archive size and free runtime disk, streams a deterministic cap of 100 JPEGs, and bundles them for transfer. Initial Colab run succeeded; retry diagnostics have synthetic coverage. | Not available (local Git not initialized; owner chose to proceed without Git). |
+
+- 2026-11-15: Release package on `t6-release` (ADR-0018): `make release` builds `runs/yolox_tiny_640_v1/release/v1.0.0/` + zip (35 MB / 33 MB zip) with detector.onnx, detector_fp16.tflite, labels, release.json, postprocess.py, test vectors, README (integration guide, now the repo front page), MODEL_CARD, MIT LICENSE, YOLOX notices, ATTRIBUTION; `make release-check` verifies checksums and reproduces all vectors from a clean copy.
 
 ## Session notes
 
@@ -166,3 +170,4 @@ T6: build the v1.0.0 release package locally (`make release`), model card and mo
 - 2026-11-15: TFLite export (`make export`): FP16 9.7 MB, INT8 5.1 MB, calibration list recorded. Parity on 1,435 test+holdout images: FP16 single pass 5,159/5,159 within tolerance (Δconf ≤ 0.003); with tiles 16 of 6,442 boxes differ (merge tie-breaks; plates still boxed). INT8 fails (16 plates missing single pass). Owner: ship FP16 only. Mac CPU per tiled photo: ONNX 381 ms, FP16 441 ms. ADR-0016.
 - 2026-11-15: Owner approved thresholds plate 0.10 / vehicle 0.30 (ADR-0017, `configs/release/v1.yaml`). Added `make try` (owner validation) and `make test-vectors` (5 vectors, `CHECK=1` reproduces). `make try` exposed tile fragment boxes: edge margin now 2% of tile (val: vehicle FP 1.45 → 1.22, no recall loss). Re-run: audited test 0.948, small 0.849, holdout 0.900, plate FP 0.39; FP16 parity single pass all within tolerance, tiled 3 near-tie differences, 0 missing. `make test` 94 passed.
 - 2026-11-15: Owner tested 10 own photos with `make try` (`data/my_photos/`, now the default folder): 8 fully right; 2 dark-garage close-ups at steep angles missed the plate (score ~0.02, not a threshold issue). An autocontrast step on dark photos (mean grey < 70) found both (0.61, 0.31) and was harmless on val (plate recall 0.940 → 0.941, FP unchanged). Owner chose to ship v1 without it; listed as a known limitation. T5 closed and merged to `main`; T6 started.
+- 2026-11-15: T6 release package built (ADR-0018). At the recommended thresholds (audited, 2×2 tiles): test plate recall 0.954, small 0.872, plate FP 0.54/photo; holdout 0.918, small 0.672. `make release-check` reproduces all 5 vectors (ONNX + FP16, single + tiles) from a clean copy; only failure is the LICENSE copyright placeholder. README algorithm re-implemented independently and matches all vectors; README quick start runs as written. Old README moved to `docs/development.md`. Found `export.json` top-level ONNX hash stale (earlier export); current file verified against the checkpoint (8e-6). `make test` 101 passed, lint clean.
