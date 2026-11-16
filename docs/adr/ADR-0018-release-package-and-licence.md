@@ -44,6 +44,10 @@ On 2026-11-15 the owner decided:
    "done when" check (download from a release URL) need the GitHub repository. That is the
    next step after the owner approves the package.
 
+## Name
+
+The public name is **Plakami** (owner, 2026-11-15): Turkish *plaka* (licence plate) and Japanese *mi* (見, to see). Releases are `plakami-v<version>.zip`. The internal Python package stays `platedet`; users never import it.
+
 ## Consequences
 
 - `README.md` at the repository root is now the integration guide. The old T1 developer

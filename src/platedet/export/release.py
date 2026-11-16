@@ -1,6 +1,6 @@
 """Build and check the release package (SPEC §8, ADR-0018). `make release`, `make release-check`.
 
-`make release` writes `runs/<run_id>/release/v<version>/` and a zip next to it:
+`make release` writes `runs/<run_id>/release/v<version>/` and `plakami-v<version>.zip` next to it:
 
   detector.onnx, detector_fp16.tflite   model files (INT8 not shipped, ADR-0016)
   labels.txt, release.json              classes; pre/post-processing contract, thresholds,
@@ -42,6 +42,7 @@ from platedet.tools.try_model import RELEASE_CONFIG, load_release
 ROOT = Path(__file__).resolve().parents[3]
 SPLIT_DIRS = {"test": Path("data/processed/combined"), "holdout": Path("data/processed/holdout")}
 TRAINING_ATTRIBUTION = Path("data/processed/combined/ATTRIBUTION.md")
+RELEASE_NAME = "plakami"  # public name (Turkish plaka "plate" + Japanese mi 見 "see")
 COPYRIGHT_PLACEHOLDER = "[COPYRIGHT HOLDER]"
 SHIPPED = {"onnx": "detector.onnx", "tflite_fp16": "detector_fp16.tflite"}
 OUTPUT_COLUMNS = ["cx", "cy", "w", "h", "objectness"]
@@ -162,7 +163,7 @@ def release_manifest(
     size = int(release["input_size"])
     cells = sum((size // s) ** 2 for s in (8, 16, 32))
     return {
-        "name": "platedet",
+        "name": RELEASE_NAME,
         "version": release["version"],
         "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "license": "MIT",
@@ -371,11 +372,13 @@ def build(
     (package / "MODEL_CARD.md").write_text(render_model_card(template, manifest), "utf-8")
     write_sha256sums(package)
 
-    archive = package.with_name(f"platedet-v{release['version']}.zip")
+    archive = package.with_name(f"{RELEASE_NAME}-v{release['version']}.zip")
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as bundle:
         for path in sorted(package.rglob("*")):
             if path.is_file():
-                bundle.write(path, f"platedet-v{release['version']}/{path.relative_to(package)}")
+                bundle.write(
+                    path, f"{RELEASE_NAME}-v{release['version']}/{path.relative_to(package)}"
+                )
     return package
 
 
@@ -513,7 +516,9 @@ def main() -> None:
         print("\n".join(problems) or f"{package}: checksums OK; all test vectors reproduce.")
         raise SystemExit(1 if problems else 0)
     built = build()
-    print(f"Release package: {built}\nArchive: {built.with_name(f'platedet-{built.name}.zip')}")
+    print(
+        f"Release package: {built}\nArchive: {built.with_name(f'{RELEASE_NAME}-{built.name}.zip')}"
+    )
 
 
 if __name__ == "__main__":

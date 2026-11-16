@@ -1,4 +1,6 @@
-# platedet: licence plate and vehicle detector
+# Plakami: licence plate and vehicle detector
+
+*Plakami* combines Turkish *plaka* (licence plate) and Japanese *mi* (見, to see).
 
 A small detector (YOLOX-Tiny, about 5 M parameters) that finds **licence plates** and
 **vehicles** in a photo. It returns a box, a class and a confidence score for each one,
