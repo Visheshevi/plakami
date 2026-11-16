@@ -1,6 +1,6 @@
 # Project Progress
 
-## Current step: T5 — Export + parity (plan awaiting owner approval)
+## Current step: T6 — Release v1.0.0 (branch `t6-release`)
 
 ### T0 — Scaffold
 
@@ -67,19 +67,36 @@ Bounded sample results (`MAX_IMAGES=100`): 83 usable images; 17 image URLs retur
 - [x] All 25 accepted loose boxes redrawn (owner go-ahead 2026-11-14); 31 corrections in total
 - [x] Owner accepts the model for v1 (2026-11-14); gap recorded in ADR-0015
 
+### T5 — Export + parity (done)
+
+- [x] Owner approved the T5 plan (2026-11-14)
+- [x] TFLite FP16 and INT8 via pinned onnx2tf (ADR-0016); calibration list recorded
+- [x] Parity on test + holdout, single pass and 2×2 tiles; speed and size (`make parity`)
+- [x] INT8 fails parity; owner: ship FP16 only (2026-11-15)
+- [x] Recommended thresholds plate 0.10 / vehicle 0.30 (ADR-0017, `configs/release/v1.yaml`)
+- [x] `make try` and `make test-vectors`; tile-edge fix (ADR-0013 addendum)
+- [x] Owner tested 10 own photos: 8 fully right; 2 dark-garage, steep-angle close-ups missed. Contrast boost fixes both and is harmless on val; owner chose to ship v1 without it (known limitation)
+
+### T6 — Release v1.0.0 (current, branch `t6-release`)
+
+- [x] Owner decisions (2026-11-15): build the release package locally first, push to GitHub later; Apache-2.0 for code and weights; mobile `README.md` is part of T6
+- [ ] Release package builder (`make release`): all SPEC §8 assets, FP16 only, `SHA256SUMS`, verify step
+- [ ] `MODEL_CARD.md` and mobile integration `README.md`
+- [ ] Owner approves the evaluation report and package
+- [ ] GitHub repo, CI release from tag (deferred by owner)
+
 ### Next up
 
-T5 plan proposed to the owner (TFLite FP16/INT8 via onnx2tf, parity, speed, size). Release candidate: `runs/yolox_tiny_640_v1` + 2×2 tiles (ADR-0015).
+T6: build the v1.0.0 release package locally (`make release`), model card and mobile README; owner review. GitHub push after that.
 
 ### Open owner decisions
 
 - SPEC §6 readable-size wording (ADR-0013): plates under 12 px wide excluded; small = 12–32 px. Proposed, not applied.
 
-- Repository code licence is deferred; no `LICENSE` file is included.
+- 2026-11-15: Owner chose Apache-2.0 for this repo's code and the released weights (SPEC §11.3).
 - GitHub repository creation and remote setup are deferred.
-- Local Git is not initialized; no task branch or commit exists.
 - Proposed data and evaluation targets in SPEC §§4–6 remain unconfirmed.
-- 2026-11-12: Owner wants a configurable redaction (blur) tool after T3, for use across several apps. Settings are passed per call and per class (style blur/pixelate/solid, strength, colour with alpha, padding, corner shape and edge softness, per-class confidence, which classes). Deliverables: Python reference in the release, plus a documented settings spec with test vectors so Kotlin/Swift apps can match it. Plan to be written after T3 results.
+- ~~2026-11-12: Owner wants a configurable redaction (blur) tool after T3.~~ Dropped by the owner on 2026-11-14: apps blur the returned boxes themselves. Instead, once the owner has tested and validated the model, write a `README.md` explaining how to use the model in mobile apps (pre/post-processing, tiling, outputs, blurring the boxes).
 - 2026-11-12: Owner wants face blurring added after T3 (a third class from Open Images "Human face" labels; plan to be written before T4). Phone-number blurring is a possible later version (needs text detection plus OCR).
 - 2026-11-12: Proposed SPEC §5 wording change for BGR input and OpenCV-style resize (ADR-0010), awaiting the owner.
 - 2026-11-12: Proposed SPEC §6 wording change for the dropped plate baseline (ADR-0007), awaiting the owner. Channel order for our own models (SPEC §5 says RGB; the official YOLOX trainer reads BGR) is to be fixed in the T3 plan.
@@ -145,3 +162,7 @@ T5 plan proposed to the owner (TFLite FP16/INT8 via onnx2tf, parity, speed, size
 - 2026-11-14: Owner reviewed the 31 loose boxes: 25 accepted, 6 redrawn by me from the photos and checked on a before/after sheet (`make audit-corrections`; boxes stay in `data/`). Accepted oversized labels make 15 tight model boxes count as misses (14 of 15 overlap the plate). Audited v1 + tiles: test 0.938, holdout 0.900. `make test` 86 passed.
 - 2026-11-14: Redrew all 25 accepted loose boxes from the photos (model-blind; all, not only the 15 the model missed). Audited v1 + tiles: test 0.947, small 0.849, holdout 0.900, FP/image 0.418.
 - 2026-11-14: Owner accepted v1 + 2×2 tiles for release (test 0.947, small 0.849, holdout 0.900, vehicles 0.741; FP 0.42). ADR-0015 records the gap; targets unchanged. T4 closed and merged to `main`.
+- 2026-11-14: Owner dropped the blur tool (apps blur boxes themselves). After T5/T6 and the owner's own testing, write a mobile-integration `README.md` on request.
+- 2026-11-15: TFLite export (`make export`): FP16 9.7 MB, INT8 5.1 MB, calibration list recorded. Parity on 1,435 test+holdout images: FP16 single pass 5,159/5,159 within tolerance (Δconf ≤ 0.003); with tiles 16 of 6,442 boxes differ (merge tie-breaks; plates still boxed). INT8 fails (16 plates missing single pass). Owner: ship FP16 only. Mac CPU per tiled photo: ONNX 381 ms, FP16 441 ms. ADR-0016.
+- 2026-11-15: Owner approved thresholds plate 0.10 / vehicle 0.30 (ADR-0017, `configs/release/v1.yaml`). Added `make try` (owner validation) and `make test-vectors` (5 vectors, `CHECK=1` reproduces). `make try` exposed tile fragment boxes: edge margin now 2% of tile (val: vehicle FP 1.45 → 1.22, no recall loss). Re-run: audited test 0.948, small 0.849, holdout 0.900, plate FP 0.39; FP16 parity single pass all within tolerance, tiled 3 near-tie differences, 0 missing. `make test` 94 passed.
+- 2026-11-15: Owner tested 10 own photos with `make try` (`data/my_photos/`, now the default folder): 8 fully right; 2 dark-garage close-ups at steep angles missed the plate (score ~0.02, not a threshold issue). An autocontrast step on dark photos (mean grey < 70) found both (0.61, 0.31) and was harmless on val (plate recall 0.940 → 0.941, FP unchanged). Owner chose to ship v1 without it; listed as a known limitation. T5 closed and merged to `main`; T6 started.

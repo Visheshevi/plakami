@@ -55,3 +55,11 @@ Owner decisions (2026-11-13):
 - Our evaluation images are capped at 1,024 px; phone photos are 3,000–4,000 px, so tiling
   should help more in production than measured here.
 - Tiling costs about 5× the compute of one pass per photo.
+
+## Addendum (2026-11-15): tile edge margin
+
+The inner-edge margin for dropping cut-off tile boxes is now **2% of the tile size**, at least 2 px. The old fixed 2 px margin let fragment boxes through.
+
+- On `val`, recall is unchanged (plates 0.933 → 0.934). False positives drop: plates 0.36 → 0.33 per image, vehicles 1.45 → 1.22.
+- Two alternatives were rejected on `val`: dropping tile boxes contained in a whole-image box, and favouring whole-image boxes on near-ties.
+- Reports in `runs/yolox_tiny_640_v0/eval_tiles2/` predate this change.

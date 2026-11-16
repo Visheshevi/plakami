@@ -1,0 +1,16 @@
+# v1.0.0 release candidate (ADR-0015, ADR-0016, ADR-0017). Read by `make try` and the T6 release.
+version: 1.0.0
+run_id: yolox_tiny_640_v1
+model_files:            # shipped files, relative to runs/<run_id>/
+  onnx: model.onnx
+  tflite_fp16: detector_fp16.tflite
+labels: [license_plate, vehicle]      # output class IDs 1 and 2
+input_size: 640
+channel_order: bgr
+nms_iou: 0.45
+recommended_thresholds:  # chosen on val only, owner-approved 2026-11-15 (ADR-0017)
+  license_plate: 0.10
+  vehicle: 0.30
+tiling:                  # recommended for single photos (ADR-0013)
+  grid: 2
+  overlap: 0.2

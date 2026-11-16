@@ -20,8 +20,8 @@ Post-processing:
 
 Tiled detection (`detect_tiled`, ADR-0013), for one photo at a time:
   - run the model on the whole image and on a `grid` x `grid` set of overlapping tiles,
-  - drop tile boxes that touch an inner tile edge (cut-off objects; the whole-image pass
-    or a neighbouring tile sees them whole),
+  - drop tile boxes within 2% of the tile size (at least 2 px) of an inner tile edge
+    (cut-off objects; the whole-image pass or a neighbouring tile sees them whole),
   - shift tile boxes back to image pixels and merge everything with class-aware NMS.
 """
 
@@ -39,7 +39,7 @@ DEFAULT_NMS_IOU = 0.45
 CHANNEL_ORDERS = ("rgb", "bgr")
 DEFAULT_CHANNEL_ORDER = "bgr"
 DEFAULT_TILE_OVERLAP = 0.2
-TILE_EDGE_MARGIN = 2.0
+TILE_EDGE_MARGIN = 0.02  # fraction of the tile size, at least 2 px (chosen on val, ADR-0013)
 
 
 @dataclass(frozen=True)
@@ -245,6 +245,57 @@ def merge_detections(detections: list[Detection], nms_iou: float) -> list[Detect
     return sorted(merged, key=lambda detection: -detection.score)
 
 
+Window = tuple[int, int, int, int]
+
+
+def tile_passes(
+    image: Image.Image,
+    detect: Callable[[Image.Image], list[Detection]],
+    *,
+    grid: int,
+    overlap: float = DEFAULT_TILE_OVERLAP,
+) -> tuple[list[Detection], list[tuple[Window, list[Detection]]]]:
+    """Raw passes: whole-image detections, and each tile's detections in tile pixels."""
+    whole = list(detect(image))
+    tiles: list[tuple[Window, list[Detection]]] = []
+    if grid > 1:
+        for window in tile_windows(image.width, image.height, grid, overlap):
+            tiles.append((window, list(detect(image.crop(window)))))
+    return whole, tiles
+
+
+def merge_tiled(
+    whole: list[Detection],
+    tiles: list[tuple[Window, list[Detection]]],
+    image_width: int,
+    image_height: int,
+    *,
+    nms_iou: float = DEFAULT_NMS_IOU,
+    edge_margin: float = TILE_EDGE_MARGIN,
+) -> list[Detection]:
+    """Merge whole-image and tile detections (see module docstring).
+
+    A tile box is dropped when it comes within `edge_margin` times the tile size (at
+    least 2 px) of an inner tile edge: the object is cut off, and the whole-image pass or a
+    neighbouring tile sees it whole.
+    """
+    detections = list(whole)
+    for (x1, y1, x2, y2), found in tiles:
+        margin_x = max(2.0, edge_margin * (x2 - x1))
+        margin_y = max(2.0, edge_margin * (y2 - y1))
+        for d in found:
+            cut = (
+                (x1 > 0 and d.x1 <= margin_x)
+                or (y1 > 0 and d.y1 <= margin_y)
+                or (x2 < image_width and d.x2 >= x2 - x1 - margin_x)
+                or (y2 < image_height and d.y2 >= y2 - y1 - margin_y)
+            )
+            if cut:
+                continue
+            detections.append(replace(d, x1=d.x1 + x1, y1=d.y1 + y1, x2=d.x2 + x1, y2=d.y2 + y1))
+    return merge_detections(detections, nms_iou)
+
+
 def detect_tiled(
     image: Image.Image,
     detect: Callable[[Image.Image], list[Detection]],
@@ -258,18 +309,12 @@ def detect_tiled(
 
     `detect` runs the model on one image (letterbox + model + `postprocess`).
     """
-    detections = list(detect(image))
-    if grid > 1:
-        for x1, y1, x2, y2 in tile_windows(image.width, image.height, grid, overlap):
-            for d in detect(image.crop((x1, y1, x2, y2))):
-                cut = (
-                    (x1 > 0 and d.x1 <= edge_margin)
-                    or (y1 > 0 and d.y1 <= edge_margin)
-                    or (x2 < image.width and d.x2 >= x2 - x1 - edge_margin)
-                    or (y2 < image.height and d.y2 >= y2 - y1 - edge_margin)
-                )
-                if not cut:
-                    detections.append(
-                        replace(d, x1=d.x1 + x1, y1=d.y1 + y1, x2=d.x2 + x1, y2=d.y2 + y1)
-                    )
-    return merge_detections(detections, nms_iou)
+    whole, tiles = tile_passes(image, detect, grid=grid, overlap=overlap)
+    return merge_tiled(
+        whole,
+        tiles,
+        image.width,
+        image.height,
+        nms_iou=nms_iou,
+        edge_margin=edge_margin,
+    )

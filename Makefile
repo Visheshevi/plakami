@@ -1,4 +1,4 @@
-.PHONY: audit-prepare audit-finalize audit-corrections pseudo-labels train-data train export eval colab-bundle setup data data-combine holdout-prepare holdout-finalize baseline test lint
+.PHONY: test-vectors try parity audit-prepare audit-finalize audit-corrections pseudo-labels train-data train export eval colab-bundle setup data data-combine holdout-prepare holdout-finalize baseline test lint
 
 DATA_CONFIG ?= configs/data/open_images.yaml
 
@@ -40,6 +40,16 @@ train:
 
 export:
 	PYTHONPATH=src uv run --locked python -m platedet.export.onnx_export --run-dir runs/$(RUN)
+	PYTHONPATH=src uv run --locked python -m platedet.export.tflite_export --run-dir runs/$(RUN)
+
+test-vectors:
+	PYTHONPATH=src uv run --locked python -m platedet.export.test_vectors $(if $(CHECK),--check)
+
+try:
+	PYTHONPATH=src uv run --locked python -m platedet.tools.try_model --images $(or $(IMAGES),data/my_photos) $(if $(OUT),--out $(OUT)) $(if $(MODEL),--model $(MODEL)) $(if $(NO_TILES),--no-tiles)
+
+parity:
+	PYTHONPATH=src uv run --locked python -m platedet.parity.parity --run $(RUN) $(if $(LIMIT),--limit $(LIMIT))
 
 eval:
 	PYTHONPATH=src uv run --locked python -m platedet.eval.evaluate_run --run $(RUN) $(if $(TILES),--tiles $(TILES)) $(if $(SPLITS),--splits $(SPLITS)) $(if $(RESCORE),--rescore)

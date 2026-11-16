@@ -47,8 +47,10 @@ make train CONFIG=configs/<name>.yaml RUN_ID=<id>   # train into runs/<id>/; App
 make eval RUN=<run_id> [TILES=2] [SPLITS=val] [RESCORE=1]  # metrics + error gallery on val/test/holdout; TILES = tiled detection (ADR-0013); RESCORE reuses saved predictions
 make audit-prepare     # plate label audit sheets for test/holdout (ADR-0014)
 make audit-finalize    # check the review and write configs/audit/plate_labels.csv
-make export RUN=<run_id>                # ONNX now (checked against PyTorch); TFLite FP16/INT8 in T5
-make parity RUN=<run_id>                # ONNX vs TFLite parity + speed + size
+make export RUN=<run_id>                # ONNX (checked against PyTorch) + TFLite FP16/INT8 via pinned onnx2tf (ADR-0016)
+make test-vectors [CHECK=1]              # porting test vectors for the release candidate (SPEC §8)
+make try [IMAGES=<folder>] [OUT=<folder>]  # run the release candidate on your photos (default data/my_photos/), save boxed copies
+make parity RUN=<run_id> [LIMIT=n]      # ONNX vs TFLite parity (single pass + 2x2 tiles), speed, size
 make test       # pytest (unit + smoke train/export on tests/data/smoke)
 make lint       # ruff check + ruff format --check
 ```

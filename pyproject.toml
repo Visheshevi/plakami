@@ -18,6 +18,9 @@ dev = [
     "pytest>=8.3,<9",
     "ruff>=0.11,<1",
 ]
+export = [
+    "ai-edge-litert>=2.1,<3",
+]
 # Training/export only (YOLOX imports these). Licences checked 2026-11-12; none GPL/AGPL.
 train = [
     "loguru>=0.7,<1", # MIT: YOLOX logging.
@@ -34,7 +37,7 @@ train = [
 ]
 
 [tool.uv]
-default-groups = ["dev", "train"]
+default-groups = ["dev", "train", "export"]
 
 [build-system]
 requires = ["hatchling>=1.26,<2"]
